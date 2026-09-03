@@ -1,0 +1,8 @@
+{
+  "hindsight_url": "http://memory-hindsight:8888",
+  "request_timeout": 60.0,
+  "retain_timeout": 120.0,
+  "recall_limit": 10,
+  "bank_prefix": "fleet",
+  "log_level": "INFO"
+}

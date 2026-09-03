@@ -1,0 +1,11 @@
+languages:
+  - python
+
+test_command: uv run pytest
+
+extra_sandbox_packages:
+  - mypy
+  - pytest
+  - pytest-asyncio
+  - respx
+  - ruff

@@ -1,0 +1,17 @@
+name: Publish Docker image
+
+on:
+  push:
+    branches: [main]
+    tags: ["*.*.*"]
+
+jobs:
+  docker-release:
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/docker-release.yml@e94a9aad6c4d6753c860520ba49b6a94a59ceb55
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+      security-events: write
+    secrets: inherit

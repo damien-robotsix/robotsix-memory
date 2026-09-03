@@ -1,0 +1,38 @@
+{
+  "additionalProperties": false,
+  "description": "Every setting robotsix-memory reads at runtime.",
+  "properties": {
+    "bank_prefix": {
+      "default": "fleet",
+      "title": "Bank Prefix",
+      "type": "string"
+    },
+    "hindsight_url": {
+      "default": "http://memory-hindsight:8888",
+      "title": "Hindsight Url",
+      "type": "string"
+    },
+    "log_level": {
+      "default": "INFO",
+      "title": "Log Level",
+      "type": "string"
+    },
+    "recall_limit": {
+      "default": 10,
+      "title": "Recall Limit",
+      "type": "integer"
+    },
+    "request_timeout": {
+      "default": 60.0,
+      "title": "Request Timeout",
+      "type": "number"
+    },
+    "retain_timeout": {
+      "default": 120.0,
+      "title": "Retain Timeout",
+      "type": "number"
+    }
+  },
+  "title": "Settings",
+  "type": "object"
+}

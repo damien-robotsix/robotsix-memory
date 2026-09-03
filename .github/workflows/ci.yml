@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  tests:
+    name: Python CI
+    permissions:
+      contents: read
+      security-events: write # SARIF upload from the reusable workflow
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-ci.yml@e94a9aad6c4d6753c860520ba49b6a94a59ceb55 # main
+    with:
+      python-version: "3.14"
+      # Must match required-version in pyproject.toml ([tool.uv]).
+      uv-version: "0.12.5"
+      cov-package: src/robotsix_memory
+      coverage-threshold: "80"
+      install-extras: ""
+      mypy-advisory: false
