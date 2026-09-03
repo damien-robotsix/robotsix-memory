@@ -1,8 +1,8 @@
 """API tests for the robotsix-memory wrapper.
 
 Hindsight is mocked at the transport layer with respx, with fixture
-shapes mirroring the Hindsight v0.9 REST API (bank-scoped paths,
-items-array retain body).
+shapes mirroring the live Hindsight 0.9.2 REST API (verified against
+its OpenAPI: retain = POST /memories, recall = POST /memories/recall).
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ def test_chat_skill_shape() -> None:
 
 @respx.mock
 def test_remember_maps_to_retain() -> None:
-    route = respx.post(f"{HS}/v1/default/banks/{OPERATOR_BANK}/memories/retain").mock(
+    route = respx.post(f"{HS}/v1/default/banks/{OPERATOR_BANK}/memories").mock(
         return_value=httpx.Response(
             200,
             json={"success": True, "bank_id": OPERATOR_BANK, "items_count": 1, "async": False},
@@ -79,7 +79,7 @@ def test_remember_maps_to_retain() -> None:
 
 @respx.mock
 def test_remember_surfaces_engine_error_verbatim() -> None:
-    respx.post(f"{HS}/v1/default/banks/{OPERATOR_BANK}/memories/retain").mock(
+    respx.post(f"{HS}/v1/default/banks/{OPERATOR_BANK}/memories").mock(
         return_value=httpx.Response(422, json={"detail": "content is required"})
     )
     resp = client.post("/remember", json={"content": "x", "owner_id": "operator"})
@@ -89,7 +89,7 @@ def test_remember_surfaces_engine_error_verbatim() -> None:
 
 @respx.mock
 def test_remember_502_when_engine_unreachable() -> None:
-    respx.post(f"{HS}/v1/default/banks/{OPERATOR_BANK}/memories/retain").mock(
+    respx.post(f"{HS}/v1/default/banks/{OPERATOR_BANK}/memories").mock(
         side_effect=httpx.ConnectError("refused")
     )
     resp = client.post("/remember", json={"content": "x", "owner_id": "operator"})
@@ -98,27 +98,30 @@ def test_remember_502_when_engine_unreachable() -> None:
 
 
 @respx.mock
-def test_recall_passes_query_and_limit() -> None:
-    route = respx.get(f"{HS}/v1/default/banks/{OPERATOR_BANK}/memories/recall").mock(
-        return_value=httpx.Response(200, json={"memories": [{"content": "fact"}]})
+def test_recall_posts_query_and_slices_to_limit() -> None:
+    engine_results = {"results": [{"text": f"fact {i}"} for i in range(20)], "entities": {}}
+    route = respx.post(f"{HS}/v1/default/banks/{OPERATOR_BANK}/memories/recall").mock(
+        return_value=httpx.Response(200, json=engine_results)
     )
     resp = client.get(
         "/recall", params={"query": "preferences", "owner_id": "operator", "limit": 5}
     )
     assert resp.status_code == 200
-    assert resp.json()["results"] == {"memories": [{"content": "fact"}]}
-    q = route.calls[0].request.url.params
-    assert q["query"] == "preferences"
-    assert q["limit"] == "5"
+    assert len(resp.json()["results"]["results"]) == 5
+    import json as _json
+
+    body = _json.loads(route.calls[0].request.content)
+    assert body["query"] == "preferences"
 
 
 @respx.mock
 def test_recall_default_limit_applied() -> None:
-    route = respx.get(f"{HS}/v1/default/banks/{OPERATOR_BANK}/memories/recall").mock(
-        return_value=httpx.Response(200, json={"memories": []})
+    engine_results = {"results": [{"text": f"fact {i}"} for i in range(20)], "entities": {}}
+    respx.post(f"{HS}/v1/default/banks/{OPERATOR_BANK}/memories/recall").mock(
+        return_value=httpx.Response(200, json=engine_results)
     )
-    client.get("/recall", params={"query": "q", "owner_id": "operator"})
-    assert route.calls[0].request.url.params["limit"] == str(settings.recall_limit)
+    resp = client.get("/recall", params={"query": "q", "owner_id": "operator"})
+    assert len(resp.json()["results"]["results"]) == settings.recall_limit
 
 
 @respx.mock

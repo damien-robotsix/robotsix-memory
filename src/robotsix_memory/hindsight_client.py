@@ -96,7 +96,7 @@ class HindsightClient:
             item["document_id"] = document_id
         return await self._request(
             "POST",
-            f"/v1/default/banks/{bank}/memories/retain",
+            f"/v1/default/banks/{bank}/memories",
             json_body={"items": [item], "async": False},
             timeout=self._retain_timeout,
         )
@@ -109,12 +109,17 @@ class HindsightClient:
         limit: int,
         tags: list[str] | None = None,
     ) -> Any:
-        params: dict[str, Any] = {"query": query, "limit": limit}
+        body: dict[str, Any] = {"query": query}
         if tags:
-            params["tags"] = tags
-        return await self._request(
-            "GET", f"/v1/default/banks/{bank}/memories/recall", params=params
+            body["tags"] = tags
+        result = await self._request(
+            "POST", f"/v1/default/banks/{bank}/memories/recall", json_body=body
         )
+        # The engine budgets by tokens, not count — apply the caller's limit
+        # to the ranked results so the wrapper contract stays simple.
+        if isinstance(result, dict) and isinstance(result.get("results"), list):
+            result["results"] = result["results"][:limit]
+        return result
 
     async def reflect(self, bank: str, query: str) -> Any:
         return await self._request(
