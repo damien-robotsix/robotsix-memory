@@ -20,6 +20,5 @@ jobs:
       # Must match required-version in pyproject.toml ([tool.uv]).
       uv-version: "0.12.5"
       cov-package: src/robotsix_memory
-      coverage-threshold: "80"
       install-extras: ""
       mypy-advisory: false

@@ -14,6 +14,7 @@ services:
       ROBOTSIX_CONFIG_FILE: /home/app/config/config.json
       MEMORY_HINDSIGHT_URL: http://memory-hindsight:8888
     labels:
+      robotsix.deploy.primary: "true"
       robotsix.deploy.config-target: /home/app/config/config.json
     volumes:
       - memory-config-data:/home/app/config
