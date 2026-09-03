@@ -9,7 +9,7 @@ API and the chat skill; the engine stays swappable.
 from __future__ import annotations
 
 import logging
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -39,6 +39,14 @@ class RememberRequest(BaseModel):
     context: str | None = None
     timestamp: str | None = None
     document_id: str | None = None
+    update_mode: Literal["append", "replace"] | None = Field(
+        default=None,
+        description=(
+            "With document_id: 'replace' supersedes the facts previously "
+            "retained under that document (rolling-summary dedup), 'append' "
+            "adds to them. Default is the engine's append behavior."
+        ),
+    )
 
 
 class ReflectRequest(BaseModel):
@@ -80,6 +88,7 @@ async def remember(body: RememberRequest) -> dict[str, Any]:
             context=body.context,
             tags=body.tags,
             document_id=body.document_id,
+            update_mode=body.update_mode,
         )
     except HindsightError as exc:
         raise _raise_for(exc) from exc

@@ -78,6 +78,31 @@ def test_remember_maps_to_retain() -> None:
 
 
 @respx.mock
+def test_remember_replace_mode_maps_to_update_mode() -> None:
+    route = respx.post(f"{HS}/v1/default/banks/{OPERATOR_BANK}/memories").mock(
+        return_value=httpx.Response(
+            200,
+            json={"success": True, "bank_id": OPERATOR_BANK, "items_count": 1, "async": False},
+        )
+    )
+    resp = client.post(
+        "/remember",
+        json={
+            "content": "Rolling summary of session abc.",
+            "owner_id": "operator",
+            "document_id": "chat-session-abc",
+            "update_mode": "replace",
+        },
+    )
+    assert resp.status_code == 201
+    import json as _json
+
+    body = _json.loads(route.calls[0].request.content)
+    assert body["items"][0]["document_id"] == "chat-session-abc"
+    assert body["items"][0]["update_mode"] == "replace"
+
+
+@respx.mock
 def test_remember_surfaces_engine_error_verbatim() -> None:
     respx.post(f"{HS}/v1/default/banks/{OPERATOR_BANK}/memories").mock(
         return_value=httpx.Response(422, json={"detail": "content is required"})

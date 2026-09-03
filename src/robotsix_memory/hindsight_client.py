@@ -84,6 +84,7 @@ class HindsightClient:
         context: str | None = None,
         tags: list[str] | None = None,
         document_id: str | None = None,
+        update_mode: str | None = None,
     ) -> Any:
         item: dict[str, Any] = {"content": content}
         if timestamp:
@@ -94,6 +95,8 @@ class HindsightClient:
             item["tags"] = tags
         if document_id:
             item["document_id"] = document_id
+        if update_mode:
+            item["update_mode"] = update_mode
         return await self._request(
             "POST",
             f"/v1/default/banks/{bank}/memories",
