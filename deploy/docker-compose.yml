@@ -1,3 +1,4 @@
+# central-deploy-contract-version: 1
 # Deployment contract for the central-deploy onboarding parser.
 #
 # Two services: the fleet-facing wrapper (primary) and the Hindsight memory
