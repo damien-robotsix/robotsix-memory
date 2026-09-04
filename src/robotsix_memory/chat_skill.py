@@ -55,6 +55,20 @@ def chat_skill() -> dict[str, Any]:
                     "tags": "optional list[str] — topical tags for filtered recall",
                     "context": "optional string — where/why this was learned",
                     "timestamp": "optional ISO 8601 — when the fact became true",
+                    "document_id": "optional string — groups facts under one source document",
+                    "background": (
+                        "optional bool (default false) — true runs the engine's "
+                        "fact extraction asynchronously: the call returns as soon "
+                        "as the item is queued instead of waiting out the LLM "
+                        "pipeline. Use for fire-and-forget writes like rolling "
+                        "summaries."
+                    ),
+                    "update_mode": (
+                        "optional 'append' | 'replace' — with document_id, "
+                        "'replace' supersedes the facts previously retained under "
+                        "that document (rolling-summary dedup), 'append' adds to "
+                        "them. Default is the engine's append behavior."
+                    ),
                 },
                 "notes": (
                     "Write full sentences with names spelled out (no pronouns "
