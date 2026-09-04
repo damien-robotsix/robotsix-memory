@@ -39,6 +39,15 @@ class RememberRequest(BaseModel):
     context: str | None = None
     timestamp: str | None = None
     document_id: str | None = None
+    background: bool = Field(
+        default=False,
+        description=(
+            "True runs the engine's fact extraction asynchronously: the call "
+            "returns as soon as the item is queued (an operation id in the "
+            "engine response) instead of waiting out the LLM pipeline. Use "
+            "for fire-and-forget writes like rolling summaries."
+        ),
+    )
     update_mode: Literal["append", "replace"] | None = Field(
         default=None,
         description=(
@@ -89,6 +98,7 @@ async def remember(body: RememberRequest) -> dict[str, Any]:
             tags=body.tags,
             document_id=body.document_id,
             update_mode=body.update_mode,
+            background=body.background,
         )
     except HindsightError as exc:
         raise _raise_for(exc) from exc

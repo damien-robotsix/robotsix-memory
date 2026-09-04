@@ -85,6 +85,7 @@ class HindsightClient:
         tags: list[str] | None = None,
         document_id: str | None = None,
         update_mode: str | None = None,
+        background: bool = False,
     ) -> Any:
         item: dict[str, Any] = {"content": content}
         if timestamp:
@@ -100,7 +101,7 @@ class HindsightClient:
         return await self._request(
             "POST",
             f"/v1/default/banks/{bank}/memories",
-            json_body={"items": [item], "async": False},
+            json_body={"items": [item], "async": background},
             timeout=self._retain_timeout,
         )
 
