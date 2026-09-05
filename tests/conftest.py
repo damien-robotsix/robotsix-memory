@@ -21,6 +21,22 @@ import respx
 from robotsix_memory.hindsight_client import bank_id
 from robotsix_memory.main import settings
 
+
+@pytest.fixture(autouse=True)
+def _no_retry_backoff_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make ``RetryClient`` backoff sleeps instant so the suite stays fast.
+
+    The Hindsight calls now go through ``robotsix_http.RetryClient``, which
+    sleeps between retries. Tests that drive transient failures would
+    otherwise wait out real exponential backoff; patch the sleep to a no-op.
+    """
+
+    async def _instant(_seconds: float) -> None:
+        return None
+
+    monkeypatch.setattr("robotsix_http.client.asyncio.sleep", _instant)
+
+
 HS = settings.hindsight_url.rstrip("/")
 OPERATOR_BANK = bank_id(settings.bank_prefix, "operator")
 

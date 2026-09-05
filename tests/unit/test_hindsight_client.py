@@ -11,8 +11,9 @@ import json
 from types import SimpleNamespace
 
 import httpx
+import pytest
 
-from robotsix_memory.hindsight_client import HindsightClient, bank_id
+from robotsix_memory.hindsight_client import HindsightClient, HindsightError, bank_id
 
 
 def test_bank_id_sanitizes_owner() -> None:
@@ -80,3 +81,48 @@ async def test_reflect_posts_query(
     assert result == {"answer": "reasoned answer"}
     body = json.loads(hindsight_mock.routes["reflect"].calls[0].request.content)
     assert body["query"] == "what matters?"
+
+
+async def test_request_retries_transient_transport_error(
+    hs_client: HindsightClient, hindsight_mock: SimpleNamespace
+) -> None:
+    """A pre-delivery transport failure on a POST is retried by RetryClient."""
+    hindsight_mock.routes["recall"].mock(
+        side_effect=[
+            httpx.ConnectError("connection refused"),
+            httpx.Response(200, json={"results": [{"text": "fact"}], "entities": {}}),
+        ]
+    )
+    result = await hs_client.recall(hindsight_mock.bank, "preferences", limit=5)
+    assert result["results"] == [{"text": "fact"}]
+    assert hindsight_mock.routes["recall"].call_count == 2
+
+
+async def test_request_maps_engine_error_to_hindsight_error(
+    hs_client: HindsightClient, hindsight_mock: SimpleNamespace
+) -> None:
+    """A 5xx from the engine surfaces as ``HindsightError`` with the status."""
+    hindsight_mock.routes["retain"].mock(return_value=httpx.Response(503, text="down"))
+    with pytest.raises(HindsightError) as excinfo:
+        await hs_client.retain(hindsight_mock.bank, "note")
+    assert excinfo.value.status_code == 503
+
+
+async def test_ping_retries_then_succeeds(
+    hs_client: HindsightClient, hindsight_mock: SimpleNamespace
+) -> None:
+    """``ping`` retries a transient 5xx (a safe GET) before answering True."""
+    hindsight_mock.routes["ping"].mock(
+        side_effect=[
+            httpx.Response(503, json={}),
+            httpx.Response(200, json={"name": "hindsight"}),
+        ]
+    )
+    assert await hs_client.ping() is True
+
+
+async def test_ping_false_on_persistent_server_error(
+    hs_client: HindsightClient, hindsight_mock: SimpleNamespace
+) -> None:
+    hindsight_mock.routes["ping"].mock(return_value=httpx.Response(503, json={}))
+    assert await hs_client.ping() is False
