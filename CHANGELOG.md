@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/damien-robotsix/robotsix-memory/compare/v0.2.0...v0.2.1) (2026-09-05)
+
+
+### Bug Fixes
+
+* FastAPI app version string stale (0.1.0 vs package 0.2.0) (20260904T120021Z-fastapi-app-version-string-stale-0-1-0-v-2127) ([#9](https://github.com/damien-robotsix/robotsix-memory/issues/9)) ([63db9e0](https://github.com/damien-robotsix/robotsix-memory/commit/63db9e0d0bc04076367ec25fd3a18602ce7469fc))
+
 ## [0.2.0](https://github.com/damien-robotsix/robotsix-memory/compare/v0.1.0...v0.2.0) (2026-09-04)
 
 
