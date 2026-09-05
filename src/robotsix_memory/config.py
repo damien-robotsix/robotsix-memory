@@ -43,5 +43,11 @@ class Settings(BaseSettings):
 
 
 def load_settings() -> Settings:
-    """Build settings: file values as base, env overrides on top."""
+    """Build settings: config-file values take precedence.
+
+    File values are passed as pydantic-settings init kwargs, which
+    outrank ``MEMORY_``-prefixed environment variables. An env var
+    therefore only fills a field the config file omits; it cannot
+    override a field the file already sets.
+    """
     return Settings(**_config_file_values())
