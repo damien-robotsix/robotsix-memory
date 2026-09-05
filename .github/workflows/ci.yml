@@ -22,3 +22,28 @@ jobs:
       cov-package: src/robotsix_memory
       install-extras: ""
       mypy-advisory: false
+
+  lockfile-security:
+    name: uv audit + lockfile freshness
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # SARIF upload for the uv audit scan
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - name: Install uv
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          version: "0.12.5" # must match required-version in pyproject.toml ([tool.uv])
+      - name: Check lockfile freshness
+        run: uv lock --check
+      - name: Run uv audit (CVE / malware scan)
+        # Always upload the SARIF so findings surface in the Security tab. uv
+        # audit in the pinned uv 0.12.x is advisory (no fail-on option), so the
+        # command exits 0 and the SARIF is generated regardless of findings.
+        run: uv audit --frozen --output-format sarif > uv-audit.sarif
+      - name: Upload uv audit SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@6f5948dfacef28e207b48d0905cf90c03365536d # v3.37.9
+        with:
+          sarif_file: uv-audit.sarif
