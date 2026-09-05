@@ -12,6 +12,7 @@ import re
 from typing import Any
 
 import httpx
+from robotsix_http import ExternalHTTPError, RetryClient
 
 _BANK_SAFE_RE = re.compile(r"[^a-zA-Z0-9_-]+")
 
@@ -53,15 +54,23 @@ class HindsightClient:
     ) -> Any:
         url = f"{self._base_url}{path}"
         try:
-            async with httpx.AsyncClient(timeout=timeout or self._timeout) as client:
+            async with httpx.AsyncClient(timeout=timeout or self._timeout) as http_client:
+                client = RetryClient(http_client)
                 resp = await client.request(method, url, json=json_body, params=params)
+        except ExternalHTTPError as exc:
+            # RetryClient mapped a 401/403/429/5xx after exhausting retries.
+            raise HindsightError(
+                f"hindsight returned {exc.status_code}: {exc.response.text[:500]}",
+                status_code=exc.status_code,
+            ) from exc
+        except httpx.HTTPStatusError as exc:
+            # Other 4xx: raise_for_status fired but RetryClient left it unmapped.
+            raise HindsightError(
+                f"hindsight returned {exc.response.status_code}: {exc.response.text[:500]}",
+                status_code=exc.response.status_code,
+            ) from exc
         except httpx.HTTPError as exc:
             raise HindsightError(f"hindsight unreachable: {exc}") from exc
-        if resp.status_code >= 400:
-            raise HindsightError(
-                f"hindsight returned {resp.status_code}: {resp.text[:500]}",
-                status_code=resp.status_code,
-            )
         if not resp.content:
             return {}
         return resp.json()
@@ -69,8 +78,15 @@ class HindsightClient:
     async def ping(self) -> bool:
         """True when the Hindsight API answers at all."""
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            async with httpx.AsyncClient(timeout=5.0) as http_client:
+                client = RetryClient(http_client)
                 resp = await client.get(f"{self._base_url}/")
+        except ExternalHTTPError as exc:
+            # The engine answered with an auth/rate-limit/other client error;
+            # a status < 500 still means the API is reachable.
+            return exc.status_code < 500
+        except httpx.HTTPStatusError as exc:
+            return exc.response.status_code < 500
         except httpx.HTTPError:
             return False
         return resp.status_code < 500
