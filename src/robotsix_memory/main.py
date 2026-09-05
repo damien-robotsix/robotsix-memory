@@ -9,6 +9,8 @@ API and the chat skill; the engine stays swappable.
 from __future__ import annotations
 
 import logging
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _dist_version
 from typing import Annotated, Any, Literal
 
 from fastapi import FastAPI, HTTPException, Query
@@ -23,7 +25,16 @@ logger = logging.getLogger("robotsix_memory")
 settings = load_settings()
 logging.basicConfig(level=settings.log_level.upper())
 
-app = FastAPI(title="robotsix-memory", version="0.1.0")
+
+def _package_version() -> str:
+    """Report the installed distribution version (falls back for source checkouts)."""
+    try:
+        return _dist_version("robotsix-memory")
+    except PackageNotFoundError:
+        return "0.0.0"
+
+
+app = FastAPI(title="robotsix-memory", version=_package_version())
 
 client = HindsightClient(
     settings.hindsight_url,
