@@ -1,5 +1,9 @@
 FROM python:3.14-slim@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6 AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.12.5@sha256:db2d5999728c5837e1bf9ba278ee6b05cef1e95e82a20e27b0c915cb4478b9d7 /uv /usr/local/bin/uv
+# git is required for uv to resolve the robotsix-http git dependency.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends git \
+  && rm -rf /var/lib/apt/lists/*
 # Build under the runtime's WORKDIR so the venv's absolute paths (script
 # shebangs, pyvenv.cfg) stay valid once it is copied into the runtime stage.
 WORKDIR /home/app
