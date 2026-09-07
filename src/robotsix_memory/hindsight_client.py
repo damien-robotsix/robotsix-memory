@@ -35,6 +35,43 @@ def bank_id(prefix: str, owner_id: str) -> str:
     return f"{prefix}-{safe_owner}"
 
 
+# Recall sizing. Hindsight's recall pipeline retrieves a candidate pool sized
+# by ``budget`` ("low"/"mid"/"high"), cross-encoder reranks EVERY candidate,
+# then keeps results until ``max_tokens`` is spent. On the fleet's CPU-only
+# VPS the rerank costs ~0.1 s per candidate, so the engine defaults
+# (budget="mid" => ~150 candidates, max_tokens=4096 => ~78 results) meant
+# ~15 s per recall on 2026-09-07 (mean 16.2 s, p90 30.4 s over 83 recalls)
+# while chat sliced the answer to 8 results and timed out at 20 s. Size the
+# engine's work to what the caller will actually keep.
+RECALL_BUDGET_LOW_MAX_LIMIT = 10  # chat's per-turn recall asks for <= 8
+RECALL_BUDGET_MID_MAX_LIMIT = 50
+RECALL_TOKENS_PER_RESULT = 160  # one rendered memory ~ 160 tokens (observed)
+RECALL_MIN_MAX_TOKENS = 512
+RECALL_ENGINE_MAX_TOKENS = 4096  # Hindsight's own default ceiling
+
+
+def recall_budget_for(limit: int) -> str:
+    """Pick the engine candidate budget matching how many results are kept."""
+    if limit <= RECALL_BUDGET_LOW_MAX_LIMIT:
+        return "low"
+    if limit <= RECALL_BUDGET_MID_MAX_LIMIT:
+        return "mid"
+    return "high"
+
+
+def recall_max_tokens_for(limit: int) -> int:
+    """Token cap so the engine's token filter stops near ``limit`` results.
+
+    ~160 tokens per rendered memory: 8 results => 1280 tokens instead of
+    filling 4096 with 78 results the wrapper would discard. Clamped to
+    [512, 4096] so tiny limits still get a few results and large ones
+    never exceed the engine's default ceiling.
+    """
+    return min(
+        RECALL_ENGINE_MAX_TOKENS, max(RECALL_MIN_MAX_TOKENS, limit * RECALL_TOKENS_PER_RESULT)
+    )
+
+
 class HindsightClient:
     """Async HTTP client bound to one Hindsight server."""
 
@@ -128,15 +165,21 @@ class HindsightClient:
         *,
         limit: int,
         tags: list[str] | None = None,
+        budget: str | None = None,
     ) -> Any:
-        body: dict[str, Any] = {"query": query}
+        body: dict[str, Any] = {
+            "query": query,
+            "budget": budget or recall_budget_for(limit),
+            "max_tokens": recall_max_tokens_for(limit),
+        }
         if tags:
             body["tags"] = tags
         result = await self._request(
             "POST", f"/v1/default/banks/{bank}/memories/recall", json_body=body
         )
-        # The engine budgets by tokens, not count — apply the caller's limit
-        # to the ranked results so the wrapper contract stays simple.
+        # The engine budgets by tokens, not count — the sizing above only
+        # bounds its work; apply the caller's limit to the ranked results so
+        # the wrapper contract (at most ``limit`` results) stays guaranteed.
         if isinstance(result, dict) and isinstance(result.get("results"), list):
             result["results"] = result["results"][:limit]
         return result
