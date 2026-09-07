@@ -84,8 +84,20 @@ def chat_skill() -> dict[str, Any]:
                     "owner_id": "string (required)",
                     "limit": "optional int (default 10)",
                     "tags": "optional repeated tag filter",
+                    "budget": (
+                        "optional 'low' | 'mid' | 'high' — engine search "
+                        "breadth; default is derived from limit ('low' for "
+                        "limit <= 10, 'mid' up to 50). Higher budgets are "
+                        "slower (cross-encoder reranks every candidate); only "
+                        "raise it for a deliberately wide search."
+                    ),
                 },
                 "returns": "ranked memories and consolidated observations",
+                "notes": (
+                    "Keep limit small for per-turn context (8 is plenty); "
+                    "recall latency scales with the engine budget, not with "
+                    "the number of results returned."
+                ),
             },
             {
                 "method": "POST",

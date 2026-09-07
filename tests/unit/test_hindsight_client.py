@@ -13,7 +13,13 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from robotsix_memory.hindsight_client import HindsightClient, HindsightError, bank_id
+from robotsix_memory.hindsight_client import (
+    HindsightClient,
+    HindsightError,
+    bank_id,
+    recall_budget_for,
+    recall_max_tokens_for,
+)
 
 
 def test_bank_id_sanitizes_owner() -> None:
@@ -69,6 +75,40 @@ async def test_recall_posts_query_and_slices_to_limit(
     assert len(result["results"]) == 5
     body = json.loads(hindsight_mock.routes["recall"].calls[0].request.content)
     assert body["query"] == "preferences"
+
+
+@pytest.mark.parametrize(
+    ("limit", "budget", "max_tokens"),
+    [
+        (1, "low", 512),  # clamped up: a single result still gets a floor
+        (8, "low", 1280),  # chat's per-turn recall: 8 * 160
+        (10, "low", 1600),
+        (11, "mid", 1760),
+        (30, "mid", 4096),  # 30 * 160 = 4800 clamped to the engine ceiling
+        (50, "mid", 4096),
+        (51, "high", 4096),
+    ],
+)
+def test_recall_sizing_heuristic(limit: int, budget: str, max_tokens: int) -> None:
+    assert recall_budget_for(limit) == budget
+    assert recall_max_tokens_for(limit) == max_tokens
+
+
+async def test_recall_sizes_engine_work_to_limit(
+    hs_client: HindsightClient, hindsight_mock: SimpleNamespace
+) -> None:
+    await hs_client.recall(hindsight_mock.bank, "preferences", limit=8)
+    body = json.loads(hindsight_mock.routes["recall"].calls[0].request.content)
+    assert body == {"query": "preferences", "budget": "low", "max_tokens": 1280}
+
+
+async def test_recall_explicit_budget_overrides_heuristic(
+    hs_client: HindsightClient, hindsight_mock: SimpleNamespace
+) -> None:
+    await hs_client.recall(hindsight_mock.bank, "preferences", limit=8, budget="high")
+    body = json.loads(hindsight_mock.routes["recall"].calls[0].request.content)
+    assert body["budget"] == "high"
+    assert body["max_tokens"] == 1280
 
 
 async def test_reflect_posts_query(

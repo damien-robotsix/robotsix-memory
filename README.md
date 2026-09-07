@@ -27,7 +27,7 @@ container only — Docker restarts it while the wrapper keeps answering
 | Route | Purpose |
 | --- | --- |
 | `POST /remember` | Store a fact (`content`, `owner_id`, optional `tags`/`context`/`timestamp`) |
-| `GET /recall` | Search an owner's memories (`query`, `owner_id`, `limit`, `tags`) |
+| `GET /recall` | Search an owner's memories (`query`, `owner_id`, `limit`, `tags`, optional `budget` = `low`/`mid`/`high`; default derived from `limit` — `low` for `limit <= 10` — because the engine's rerank cost scales with the candidate budget) |
 | `POST /reflect` | Reasoned answer grounded in the owner's memories |
 | `GET /chat-skill` | Skill document for chat agents |
 | `GET /health` | Wrapper + engine status; `GET /health/live` liveness only |

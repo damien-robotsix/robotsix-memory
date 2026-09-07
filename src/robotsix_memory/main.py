@@ -122,10 +122,22 @@ async def recall(
     owner_id: Annotated[str, Query(min_length=1)],
     limit: Annotated[int | None, Query(ge=1, le=100)] = None,
     tags: Annotated[list[str] | None, Query()] = None,
+    budget: Annotated[
+        Literal["low", "mid", "high"] | None,
+        Query(
+            description=(
+                "Engine candidate budget. Default is derived from limit "
+                "('low' for limit <= 10, 'mid' up to 50, 'high' beyond); "
+                "pass explicitly to trade latency for a wider search."
+            )
+        ),
+    ] = None,
 ) -> dict[str, Any]:
     bank = bank_id(settings.bank_prefix, owner_id)
     try:
-        result = await client.recall(bank, query, limit=limit or settings.recall_limit, tags=tags)
+        result = await client.recall(
+            bank, query, limit=limit or settings.recall_limit, tags=tags, budget=budget
+        )
     except HindsightError as exc:
         raise _raise_for(exc) from exc
     return {"owner_id": owner_id, "results": result}

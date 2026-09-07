@@ -9,6 +9,7 @@ in ``tests/unit``.
 
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 
 import httpx
@@ -89,6 +90,50 @@ def test_recall_posts_query_and_slices_to_limit(hindsight_mock: SimpleNamespace)
     )
     assert resp.status_code == 200
     assert len(resp.json()["results"]["results"]) == 5
+
+
+def test_recall_small_limit_sends_low_budget_and_bounded_tokens(
+    hindsight_mock: SimpleNamespace,
+) -> None:
+    """Chat's per-turn recall (limit=8) must not trigger the engine's mid budget."""
+    resp = client.get("/recall", params={"query": "q", "owner_id": "operator", "limit": 8})
+    assert resp.status_code == 200
+    body = json.loads(hindsight_mock.routes["recall"].calls[0].request.content)
+    assert body["budget"] == "low"
+    assert 512 <= body["max_tokens"] <= 1500
+    assert body["max_tokens"] < 4096
+
+
+def test_recall_larger_limit_sends_mid_budget(hindsight_mock: SimpleNamespace) -> None:
+    resp = client.get("/recall", params={"query": "q", "owner_id": "operator", "limit": 30})
+    assert resp.status_code == 200
+    body = json.loads(hindsight_mock.routes["recall"].calls[0].request.content)
+    assert body["budget"] == "mid"
+    assert body["max_tokens"] == 4096
+
+
+def test_recall_explicit_budget_wins_over_limit_heuristic(
+    hindsight_mock: SimpleNamespace,
+) -> None:
+    resp = client.get(
+        "/recall",
+        params={"query": "q", "owner_id": "operator", "limit": 8, "budget": "high"},
+    )
+    assert resp.status_code == 200
+    body = json.loads(hindsight_mock.routes["recall"].calls[0].request.content)
+    assert body["budget"] == "high"
+
+
+def test_recall_rejects_unknown_budget(hindsight_mock: SimpleNamespace) -> None:
+    resp = client.get("/recall", params={"query": "q", "owner_id": "operator", "budget": "huge"})
+    assert resp.status_code == 422
+    assert not hindsight_mock.routes["recall"].called
+
+
+def test_chat_skill_documents_recall_budget() -> None:
+    doc = client.get("/chat-skill").json()
+    recall_entry = next(e for e in doc["endpoints"] if e["path"] == "/recall")
+    assert "budget" in recall_entry["params"]
 
 
 def test_recall_default_limit_applied(hindsight_mock: SimpleNamespace) -> None:
