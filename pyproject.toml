@@ -31,7 +31,7 @@ dev = [
 required-version = ">=0.12.5"
 
 [tool.uv.sources]
-robotsix-http = { git = "https://github.com/damien-robotsix/robotsix-http.git", rev = "c57947232685f4e4798a61e2bc53d747d3dbc75d" }
+robotsix-http = { git = "https://github.com/damien-robotsix/robotsix-http.git", rev = "df0bcaf52bd0c0063dccfbc667cdb4776ac8a39b" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/robotsix_memory"]
