@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.2](https://github.com/damien-robotsix/robotsix-memory/compare/v0.2.1...v0.2.2) (2026-09-08)
+
+
+### Bug Fixes
+
+* **deploy:** cap Hindsight low-budget rerank at 40 candidates to stop recall timeouts ([#24](https://github.com/damien-robotsix/robotsix-memory/issues/24)) ([1e92dda](https://github.com/damien-robotsix/robotsix-memory/commit/1e92dda3d35a8774cb193f0287271dd31307d731))
+* **recall:** size hindsight recall budget and max_tokens to the caller's limit ([#22](https://github.com/damien-robotsix/robotsix-memory/issues/22)) ([0efd687](https://github.com/damien-robotsix/robotsix-memory/commit/0efd68799cbf87e529c01439249bc5de01fbacee))
+
 ## [0.2.1](https://github.com/damien-robotsix/robotsix-memory/compare/v0.2.0...v0.2.1) (2026-09-05)
 
 
