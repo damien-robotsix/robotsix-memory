@@ -45,6 +45,14 @@ services:
       HINDSIGHT_API_EMBEDDINGS_OPENAI_BASE_URL: https://embed.robotsix.net/v1
       HINDSIGHT_API_EMBEDDINGS_OPENAI_MODEL: bge-m3
       HINDSIGHT_API_EMBEDDINGS_OPENAI_API_KEY: ""
+      # Recall latency guard (2026-09-08): with the default cap the local
+      # cross-encoder reranked ~160 RRF candidates per recall on the shared
+      # VPS CPU — 10–50 s per chat turn (p50 13.7 s, p90 36 s), while chat
+      # only keeps the top 8 facts and the 1280-token filter admits ~25.
+      # Capping the low-budget rerank input at 40 candidates keeps the
+      # quality of the returned facts and cuts rerank time ~4x. The other
+      # levels are left on the engine default (300) for explicit deep recalls.
+      HINDSIGHT_API_RERANKER_MAX_CANDIDATES_LOW: "40"
     volumes:
       - memory-hindsight-data:/home/hindsight/.pg0
 
