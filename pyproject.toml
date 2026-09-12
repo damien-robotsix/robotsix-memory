@@ -13,7 +13,7 @@ dependencies = [
     "uvicorn[standard]>=0.52.3",
     "httpx>=0.28.0",
     "pydantic>=2.13.0",
-    "pydantic-settings>=2.7.0",
+    "robotsix-config>=0.6.0",
     "robotsix-http>=0.1",
 ]
 
@@ -31,6 +31,7 @@ dev = [
 required-version = ">=0.12.5"
 
 [tool.uv.sources]
+robotsix-config = { git = "https://github.com/damien-robotsix/robotsix-config.git", rev = "8b9fa37f53b179986ca8b8f603d8786b9aa06018" }
 robotsix-http = { git = "https://github.com/damien-robotsix/robotsix-http.git", rev = "c57947232685f4e4798a61e2bc53d747d3dbc75d" }
 
 [tool.hatch.build.targets.wheel]

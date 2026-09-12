@@ -1,5 +1,4 @@
 {
-  "additionalProperties": false,
   "description": "Every setting robotsix-memory reads at runtime.",
   "properties": {
     "bank_prefix": {

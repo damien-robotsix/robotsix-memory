@@ -1,12 +1,11 @@
 """Unit tests for the runtime settings loader (robotsix_memory.config).
 
-``_config_file_values()`` is exercised directly with ``ROBOTSIX_CONFIG_FILE``
-pointing at tmp_path fixtures, covering each branch: missing file, OSError /
-ValueError on read-or-parse, non-dict JSON, and a valid dict. ``load_settings()``
-is checked for defaults, file values as the base, and ``MEMORY_``-prefixed env
-vars filling fields the file omits (pydantic-settings gives init kwargs — the
-file values — precedence over env vars, so env cannot override a
-file-provided field despite the load_settings docstring phrasing).
+Settings load through the fleet-standard ``robotsix_config.load_config``: the
+JSON config file (path in ``ROBOTSIX_CONFIG_FILE``) is the single source of
+values, and the model's own field defaults fill anything the file omits.
+``load_settings()`` is checked for defaults, file values as the base,
+``InvalidConfigError`` on malformed/non-dict input, and the single kept
+deploy-time override (``MEMORY_HINDSIGHT_URL`` → ``hindsight_url``).
 """
 
 from __future__ import annotations
@@ -15,61 +14,9 @@ import json
 from pathlib import Path
 
 import pytest
+from robotsix_config import InvalidConfigError
 
-from robotsix_memory.config import _config_file_values, load_settings
-
-
-def test_config_file_values_missing_file_returns_empty(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("ROBOTSIX_CONFIG_FILE", str(tmp_path / "absent.json"))
-
-    assert _config_file_values() == {}
-
-
-def test_config_file_values_malformed_json_returns_empty(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    cfg = tmp_path / "config.json"
-    cfg.write_text('{"hindsight_url": ', encoding="utf-8")
-    monkeypatch.setenv("ROBOTSIX_CONFIG_FILE", str(cfg))
-
-    assert _config_file_values() == {}
-
-
-def test_config_file_values_read_oserror_returns_empty(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    cfg = tmp_path / "config.json"
-    cfg.write_text("{}", encoding="utf-8")
-    monkeypatch.setenv("ROBOTSIX_CONFIG_FILE", str(cfg))
-
-    def _raise_oserror(*_args: object, **_kwargs: object) -> object:
-        raise OSError("simulated read failure")
-
-    monkeypatch.setattr(json, "loads", _raise_oserror)
-
-    assert _config_file_values() == {}
-
-
-def test_config_file_values_non_dict_json_returns_empty(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    cfg = tmp_path / "config.json"
-    cfg.write_text("[1, 2, 3]", encoding="utf-8")
-    monkeypatch.setenv("ROBOTSIX_CONFIG_FILE", str(cfg))
-
-    assert _config_file_values() == {}
-
-
-def test_config_file_values_valid_dict_returned(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    cfg = tmp_path / "config.json"
-    cfg.write_text(json.dumps({"recall_limit": 3, "log_level": "DEBUG"}), encoding="utf-8")
-    monkeypatch.setenv("ROBOTSIX_CONFIG_FILE", str(cfg))
-
-    assert _config_file_values() == {"recall_limit": 3, "log_level": "DEBUG"}
+from robotsix_memory.config import load_settings
 
 
 def test_load_settings_defaults_without_config_file(
@@ -101,26 +48,59 @@ def test_load_settings_uses_file_values_as_base(
     assert settings.hindsight_url == "http://memory-hindsight:8888"
 
 
-def test_load_settings_env_var_overrides_default(
+def test_load_settings_malformed_json_raises(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    cfg = tmp_path / "config.json"
+    cfg.write_text('{"hindsight_url": ', encoding="utf-8")
+    monkeypatch.setenv("ROBOTSIX_CONFIG_FILE", str(cfg))
+
+    with pytest.raises(InvalidConfigError):
+        load_settings()
+
+
+def test_load_settings_non_dict_json_raises(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    cfg = tmp_path / "config.json"
+    cfg.write_text("[1, 2, 3]", encoding="utf-8")
+    monkeypatch.setenv("ROBOTSIX_CONFIG_FILE", str(cfg))
+
+    with pytest.raises(InvalidConfigError):
+        load_settings()
+
+
+def test_load_settings_env_var_overrides_default_hindsight_url(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("ROBOTSIX_CONFIG_FILE", str(tmp_path / "absent.json"))
+    monkeypatch.setenv("MEMORY_HINDSIGHT_URL", "http://other-hindsight:9999")
+
+    settings = load_settings()
+
+    assert settings.hindsight_url == "http://other-hindsight:9999"
+
+
+def test_load_settings_env_var_wins_over_file_for_hindsight_url(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    cfg = tmp_path / "config.json"
+    cfg.write_text(json.dumps({"hindsight_url": "http://file-hindsight:8888"}), encoding="utf-8")
+    monkeypatch.setenv("ROBOTSIX_CONFIG_FILE", str(cfg))
+    monkeypatch.setenv("MEMORY_HINDSIGHT_URL", "http://env-hindsight:9999")
+
+    settings = load_settings()
+
+    assert settings.hindsight_url == "http://env-hindsight:9999"
+
+
+def test_load_settings_other_env_vars_ignored(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Only hindsight_url keeps an env override; the file stays the source for the rest."""
     monkeypatch.setenv("ROBOTSIX_CONFIG_FILE", str(tmp_path / "absent.json"))
     monkeypatch.setenv("MEMORY_RECALL_LIMIT", "7")
 
     settings = load_settings()
 
-    assert settings.recall_limit == 7
-
-
-def test_load_settings_env_var_fills_field_file_omits(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    cfg = tmp_path / "config.json"
-    cfg.write_text(json.dumps({"recall_limit": 3}), encoding="utf-8")
-    monkeypatch.setenv("ROBOTSIX_CONFIG_FILE", str(cfg))
-    monkeypatch.setenv("MEMORY_LOG_LEVEL", "DEBUG")
-
-    settings = load_settings()
-
-    assert settings.recall_limit == 3  # file-provided field keeps the file value
-    assert settings.log_level == "DEBUG"  # env fills the omitted field
+    assert settings.recall_limit == 10

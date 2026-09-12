@@ -1,38 +1,28 @@
 """Runtime settings for the robotsix-memory wrapper.
 
-Settings load from a JSON config file (path in ``ROBOTSIX_CONFIG_FILE``,
-default ``config/config.json``) with environment-variable overrides
-(``MEMORY_``-prefixed). The deploy plane owns the config volume; the schema
-in ``config/config.schema.json`` is generated from this model and must be
-regenerated when fields change (``python -m robotsix_memory.gen_schema``).
+Settings are a :class:`robotsix_config.ConfigModel` loaded from the
+fleet-standard single JSON config file (path in ``ROBOTSIX_CONFIG_FILE``,
+default ``config/config.json``) via :func:`robotsix_config.load_config` — one
+pydantic model, one JSON file, versioned history. The deploy plane owns the
+config volume; the schema in ``config/config.schema.json`` is generated from
+this model and must be regenerated when fields change
+(``python -m robotsix_memory.gen_schema``).
+
+The config file is the single source of config values (per the
+config-ownership contract). The one kept deploy-time env override is
+``MEMORY_HINDSIGHT_URL``, which points at the sibling Hindsight engine's
+endpoint and can vary per deployment.
 """
 
 from __future__ import annotations
 
-import json
 import os
-from pathlib import Path
-from typing import Any
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from robotsix_config import ConfigModel, load_config
 
 
-def _config_file_values() -> dict[str, Any]:
-    """Read the JSON config file if present; missing file means defaults."""
-    path = Path(os.environ.get("ROBOTSIX_CONFIG_FILE", "config/config.json"))
-    if not path.is_file():
-        return {}
-    try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-    except OSError, ValueError:
-        return {}
-    return raw if isinstance(raw, dict) else {}
-
-
-class Settings(BaseSettings):
+class Settings(ConfigModel):
     """Every setting robotsix-memory reads at runtime."""
-
-    model_config = SettingsConfigDict(env_prefix="MEMORY_")
 
     hindsight_url: str = "http://memory-hindsight:8888"
     request_timeout: float = 60.0
@@ -43,11 +33,14 @@ class Settings(BaseSettings):
 
 
 def load_settings() -> Settings:
-    """Build settings: config-file values take precedence.
+    """Build settings: the JSON config file is the single source of values.
 
-    File values are passed as pydantic-settings init kwargs, which
-    outrank ``MEMORY_``-prefixed environment variables. An env var
-    therefore only fills a field the config file omits; it cannot
-    override a field the file already sets.
+    ``MEMORY_HINDSIGHT_URL`` is the one kept env-prefix override — the
+    sibling Hindsight engine's endpoint genuinely varies per deployment, so
+    it wins over the file value.
     """
-    return Settings(**_config_file_values())
+    settings = load_config(Settings)
+    hindsight_url = os.environ.get("MEMORY_HINDSIGHT_URL")
+    if hindsight_url:
+        settings = settings.model_copy(update={"hindsight_url": hindsight_url})
+    return settings
