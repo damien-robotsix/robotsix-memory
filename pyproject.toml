@@ -31,7 +31,7 @@ dev = [
 required-version = ">=0.12.5"
 
 [tool.uv.sources]
-robotsix-config = { git = "https://github.com/damien-robotsix/robotsix-config.git", rev = "8b9fa37f53b179986ca8b8f603d8786b9aa06018" }
+robotsix-config = { git = "https://github.com/damien-robotsix/robotsix-config.git", rev = "0f2e484b59eb306b54ba25fc8bddb5a3e3ad2535" }
 robotsix-http = { git = "https://github.com/damien-robotsix/robotsix-http.git", rev = "c57947232685f4e4798a61e2bc53d747d3dbc75d" }
 
 [tool.hatch.build.targets.wheel]

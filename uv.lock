@@ -594,8 +594,8 @@ wheels = [
 
 [[package]]
 name = "robotsix-config"
-version = "0.6.0"
-source = { git = "https://github.com/damien-robotsix/robotsix-config.git?rev=8b9fa37f53b179986ca8b8f603d8786b9aa06018#8b9fa37f53b179986ca8b8f603d8786b9aa06018" }
+version = "0.7.0"
+source = { git = "https://github.com/damien-robotsix/robotsix-config.git?rev=0f2e484b59eb306b54ba25fc8bddb5a3e3ad2535#0f2e484b59eb306b54ba25fc8bddb5a3e3ad2535" }
 dependencies = [
     { name = "pydantic" },
 ]
@@ -636,7 +636,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.141.1" },
     { name = "httpx", specifier = ">=0.28.0" },
     { name = "pydantic", specifier = ">=2.13.0" },
-    { name = "robotsix-config", git = "https://github.com/damien-robotsix/robotsix-config.git?rev=8b9fa37f53b179986ca8b8f603d8786b9aa06018" },
+    { name = "robotsix-config", git = "https://github.com/damien-robotsix/robotsix-config.git?rev=0f2e484b59eb306b54ba25fc8bddb5a3e3ad2535" },
     { name = "robotsix-http", git = "https://github.com/damien-robotsix/robotsix-http.git?rev=c57947232685f4e4798a61e2bc53d747d3dbc75d" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.3" },
 ]
