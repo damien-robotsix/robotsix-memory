@@ -31,8 +31,8 @@ dev = [
 required-version = ">=0.12.5"
 
 [tool.uv.sources]
-robotsix-config = { git = "https://github.com/damien-robotsix/robotsix-config.git", rev = "8b9fa37f53b179986ca8b8f603d8786b9aa06018" }
-robotsix-http = { git = "https://github.com/damien-robotsix/robotsix-http.git", rev = "c57947232685f4e4798a61e2bc53d747d3dbc75d" }
+robotsix-config = { git = "https://github.com/damien-robotsix/robotsix-config.git", rev = "66e593cd4bfc64aa232557700cdb7c673819f161" }
+robotsix-http = { git = "https://github.com/damien-robotsix/robotsix-http.git", rev = "791dcf356f35103dd8a22dec1ebeefbaeb2a5c00" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/robotsix_memory"]
