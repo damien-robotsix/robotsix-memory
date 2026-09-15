@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/damien-robotsix/robotsix-memory/compare/v0.2.2...v0.3.0) (2026-09-15)
+
+
+### Features
+
+* Migrate robotsix-memory FastAPI bootstrap to robotsix_http.fastapi (20260915T022239Z-migrate-robotsix-memory-fastapi-bootstra-a3dd) ([#28](https://github.com/damien-robotsix/robotsix-memory/issues/28)) ([d7ad1dc](https://github.com/damien-robotsix/robotsix-memory/commit/d7ad1dc57ba31909ae2014faa9cdee7e411b8ec0))
+
 ## [0.2.2](https://github.com/damien-robotsix/robotsix-memory/compare/v0.2.1...v0.2.2) (2026-09-08)
 
 
