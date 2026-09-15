@@ -14,7 +14,7 @@ dependencies = [
     "httpx>=0.28.0",
     "pydantic>=2.13.0",
     "robotsix-config>=0.6.0",
-    "robotsix-http>=0.1",
+    "robotsix-http[fastapi]>=0.4",
 ]
 
 [dependency-groups]
@@ -32,7 +32,7 @@ required-version = ">=0.12.5"
 
 [tool.uv.sources]
 robotsix-config = { git = "https://github.com/damien-robotsix/robotsix-config.git", rev = "8b9fa37f53b179986ca8b8f603d8786b9aa06018" }
-robotsix-http = { git = "https://github.com/damien-robotsix/robotsix-http.git", rev = "c57947232685f4e4798a61e2bc53d747d3dbc75d" }
+robotsix-http = { git = "https://github.com/damien-robotsix/robotsix-http.git", rev = "c9886b58e3feef5bf3c7e7c56f69dd84c211ac7c" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/robotsix_memory"]

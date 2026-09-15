@@ -13,8 +13,13 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _dist_version
 from typing import Annotated, Any, Literal
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Query
 from pydantic import BaseModel, Field
+from robotsix_http.fastapi import (
+    DomainError,
+    create_health_router,
+    register_exception_handlers,
+)
 
 from robotsix_memory.chat_skill import chat_skill
 from robotsix_memory.config import load_settings
@@ -35,6 +40,15 @@ def _package_version() -> str:
 
 
 app = FastAPI(title="robotsix-memory", version=_package_version())
+
+# Fleet-standard exception-handler suite: request-validation, HTTPException,
+# DomainError, robotsix-http's ExternalHTTPError, and a catch-all unhandled
+# handler — all rendering the shared {"error": {"code", "detail"}} envelope.
+register_exception_handlers(app)
+
+# Fleet-standard GET /health -> {"status": "ok"}. The bespoke /health/live
+# (container liveness) and /health/hindsight (engine reachability) stay below.
+app.include_router(create_health_router())
 
 client = HindsightClient(
     settings.hindsight_url,
@@ -74,9 +88,14 @@ class ReflectRequest(BaseModel):
     owner_id: str = Field(min_length=1)
 
 
-def _raise_for(exc: HindsightError) -> HTTPException:
+def _domain_error_for(exc: HindsightError) -> DomainError:
+    """Map a Hindsight engine failure onto the shared ``DomainError`` envelope.
+
+    Preserves the upstream status (502 when the engine is unreachable) and
+    surfaces the engine's real message under the canonical ``error`` envelope.
+    """
     status = 502 if exc.status_code is None else exc.status_code
-    return HTTPException(status_code=status, detail=str(exc))
+    return DomainError(str(exc), code="hindsight_error", status_code=status)
 
 
 @app.get("/health/live")
@@ -85,8 +104,8 @@ async def health_live() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/health")
-async def health() -> dict[str, str]:
+@app.get("/health/hindsight")
+async def health_hindsight() -> dict[str, str]:
     """Full status including engine reachability."""
     hindsight = "ok" if await client.ping() else "unreachable"
     return {"status": "ok", "hindsight": hindsight}
@@ -112,7 +131,7 @@ async def remember(body: RememberRequest) -> dict[str, Any]:
             background=body.background,
         )
     except HindsightError as exc:
-        raise _raise_for(exc) from exc
+        raise _domain_error_for(exc) from exc
     return {"stored": True, "owner_id": body.owner_id, "engine": result}
 
 
@@ -139,7 +158,7 @@ async def recall(
             bank, query, limit=limit or settings.recall_limit, tags=tags, budget=budget
         )
     except HindsightError as exc:
-        raise _raise_for(exc) from exc
+        raise _domain_error_for(exc) from exc
     return {"owner_id": owner_id, "results": result}
 
 
@@ -149,5 +168,5 @@ async def reflect(body: ReflectRequest) -> dict[str, Any]:
     try:
         result = await client.reflect(bank, body.query)
     except HindsightError as exc:
-        raise _raise_for(exc) from exc
+        raise _domain_error_for(exc) from exc
     return {"owner_id": body.owner_id, "reflection": result}

@@ -79,7 +79,7 @@ def test_remember_maps_to_retain(hindsight_mock: SimpleNamespace) -> None:
 
 def test_health_reports_hindsight_down(hindsight_mock: SimpleNamespace) -> None:
     hindsight_mock.routes["ping"].mock(side_effect=httpx.ConnectError("refused"))
-    resp = client.get("/health")
+    resp = client.get("/health/hindsight")
     assert resp.json() == {"status": "ok", "hindsight": "unreachable"}
 ```
 

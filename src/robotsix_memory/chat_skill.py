@@ -25,7 +25,10 @@ def chat_skill() -> dict[str, Any]:
         ),
         "base": {
             "port": 8080,
-            "health": 'GET /health -> {"status": "ok", "hindsight": "ok"}',
+            "health": (
+                'GET /health -> {"status": "ok"}; GET /health/hindsight adds '
+                'engine reachability -> {"status": "ok", "hindsight": "ok"}'
+            ),
         },
         "auth": {
             "description": (

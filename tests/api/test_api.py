@@ -13,6 +13,7 @@ import json
 from types import SimpleNamespace
 
 import httpx
+import pytest
 from fastapi.testclient import TestClient
 
 from robotsix_memory.main import app, settings
@@ -26,16 +27,38 @@ def test_health_live() -> None:
     assert resp.json() == {"status": "ok"}
 
 
+def test_health_standard_shape() -> None:
+    """The fleet-standard /health from create_health_router()."""
+    resp = client.get("/health")
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "ok"}
+
+
 def test_health_reports_hindsight_down(hindsight_mock: SimpleNamespace) -> None:
     hindsight_mock.routes["ping"].mock(side_effect=httpx.ConnectError("refused"))
-    resp = client.get("/health")
+    resp = client.get("/health/hindsight")
     assert resp.status_code == 200
     assert resp.json() == {"status": "ok", "hindsight": "unreachable"}
 
 
 def test_health_reports_hindsight_ok(hindsight_mock: SimpleNamespace) -> None:
-    resp = client.get("/health")
+    resp = client.get("/health/hindsight")
     assert resp.json() == {"status": "ok", "hindsight": "ok"}
+
+
+def test_unhandled_exception_returns_500_envelope(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An unexpected error hits the catch-all handler and yields the envelope."""
+
+    async def _boom(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("unexpected")
+
+    monkeypatch.setattr("robotsix_memory.main.client.reflect", _boom)
+    safe_client = TestClient(app, raise_server_exceptions=False)
+    resp = safe_client.post("/reflect", json={"query": "q", "owner_id": "operator"})
+    assert resp.status_code == 500
+    assert resp.json() == {"error": {"code": "internal_error", "detail": "Internal Server Error"}}
 
 
 def test_chat_skill_shape() -> None:
@@ -67,14 +90,18 @@ def test_remember_surfaces_engine_error_verbatim(hindsight_mock: SimpleNamespace
     )
     resp = client.post("/remember", json={"content": "x", "owner_id": "operator"})
     assert resp.status_code == 422
-    assert "content is required" in resp.json()["detail"]
+    body = resp.json()
+    assert body["error"]["code"] == "hindsight_error"
+    assert "content is required" in body["error"]["detail"]
 
 
 def test_remember_502_when_engine_unreachable(hindsight_mock: SimpleNamespace) -> None:
     hindsight_mock.routes["retain"].mock(side_effect=httpx.ConnectError("refused"))
     resp = client.post("/remember", json={"content": "x", "owner_id": "operator"})
     assert resp.status_code == 502
-    assert "unreachable" in resp.json()["detail"]
+    body = resp.json()
+    assert body["error"]["code"] == "hindsight_error"
+    assert "unreachable" in body["error"]["detail"]
 
 
 def test_remember_rejects_missing_owner() -> None:
