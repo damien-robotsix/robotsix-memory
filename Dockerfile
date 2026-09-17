@@ -14,6 +14,18 @@ RUN uv sync --no-dev --frozen
 
 FROM python:3.14-slim@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6 AS runtime
 RUN useradd --create-home --uid 1000 app
+
+# The base image still carries perl-base at the older trixie/main build
+# (5.40.1-6), which the Trivy CRITICAL gate rejects for CVE-2026-13221,
+# CVE-2026-42496 and CVE-2026-8376. trixie/main already publishes the patched
+# 5.40.1-6+deb13u1, so upgrade it in the runtime stage — the builder stage's
+# apt work does not reach the final image. Same remedy as robotsix-chat.
+RUN apt-get update \
+    && apt-get install --only-upgrade -y --no-install-recommends \
+        perl-base="5.40.*" \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /home/app
 
 COPY --from=builder /home/app/.venv /home/app/.venv
