@@ -9,12 +9,17 @@ detail behind this module. Endpoint shapes follow the Hindsight v0.9 API
 from __future__ import annotations
 
 import re
+import time
 from typing import Any
 
 import httpx
 from robotsix_http import ExternalHTTPError, RetryClient
 
+from robotsix_memory.logging_config import get_logger
+
 _BANK_SAFE_RE = re.compile(r"[^a-zA-Z0-9_-]+")
+
+logger = get_logger("robotsix_memory.hindsight_client")
 
 
 class HindsightError(Exception):
@@ -90,24 +95,46 @@ class HindsightClient:
         timeout: float | None = None,
     ) -> Any:
         url = f"{self._base_url}{path}"
+        log = logger.bind(method=method, url=url)
+        start = time.monotonic()
+
+        def _elapsed_ms() -> float:
+            return round((time.monotonic() - start) * 1000, 2)
+
         try:
             async with httpx.AsyncClient(timeout=timeout or self._timeout) as http_client:
                 client = RetryClient(http_client)
                 resp = await client.request(method, url, json=json_body, params=params)
         except ExternalHTTPError as exc:
             # RetryClient mapped a 401/403/429/5xx after exhausting retries.
+            log.warning(
+                "hindsight.request.error",
+                status_code=exc.status_code,
+                duration_ms=_elapsed_ms(),
+            )
             raise HindsightError(
                 f"hindsight returned {exc.status_code}: {exc.response.text[:500]}",
                 status_code=exc.status_code,
             ) from exc
         except httpx.HTTPStatusError as exc:
             # Other 4xx: raise_for_status fired but RetryClient left it unmapped.
+            log.warning(
+                "hindsight.request.error",
+                status_code=exc.response.status_code,
+                duration_ms=_elapsed_ms(),
+            )
             raise HindsightError(
                 f"hindsight returned {exc.response.status_code}: {exc.response.text[:500]}",
                 status_code=exc.response.status_code,
             ) from exc
         except httpx.HTTPError as exc:
+            log.warning("hindsight.request.unreachable", duration_ms=_elapsed_ms(), error=str(exc))
             raise HindsightError(f"hindsight unreachable: {exc}") from exc
+        log.info(
+            "hindsight.request.complete",
+            status_code=resp.status_code,
+            duration_ms=_elapsed_ms(),
+        )
         if not resp.content:
             return {}
         return resp.json()

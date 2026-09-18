@@ -12,6 +12,7 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
+import structlog
 
 from robotsix_memory.hindsight_client import (
     HindsightClient,
@@ -166,3 +167,31 @@ async def test_ping_false_on_persistent_server_error(
 ) -> None:
     hindsight_mock.routes["ping"].mock(return_value=httpx.Response(503, json={}))
     assert await hs_client.ping() is False
+
+
+async def test_request_logs_method_url_and_status(
+    hs_client: HindsightClient, hindsight_mock: SimpleNamespace
+) -> None:
+    """A successful request emits one structured completion log line."""
+    hindsight_mock.routes["reflect"].mock(return_value=httpx.Response(200, json={"answer": "ok"}))
+    with structlog.testing.capture_logs() as logs:
+        await hs_client.reflect(hindsight_mock.bank, "q")
+    completed = [entry for entry in logs if entry["event"] == "hindsight.request.complete"]
+    assert len(completed) == 1
+    assert completed[0]["method"] == "POST"
+    assert completed[0]["url"].endswith("/reflect")
+    assert completed[0]["status_code"] == 200
+    assert "duration_ms" in completed[0]
+
+
+async def test_request_logs_error_status(
+    hs_client: HindsightClient, hindsight_mock: SimpleNamespace
+) -> None:
+    """A 5xx from the engine is logged with its status before raising."""
+    hindsight_mock.routes["retain"].mock(return_value=httpx.Response(503, text="down"))
+    with structlog.testing.capture_logs() as logs:  # noqa: SIM117
+        with pytest.raises(HindsightError):
+            await hs_client.retain(hindsight_mock.bank, "note")
+    errors = [entry for entry in logs if entry["event"] == "hindsight.request.error"]
+    assert errors
+    assert errors[0]["status_code"] == 503

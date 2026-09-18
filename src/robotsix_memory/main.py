@@ -8,11 +8,13 @@ API and the chat skill; the engine stays swappable.
 
 from __future__ import annotations
 
-import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _dist_version
 from typing import Annotated, Any, Literal
 
+import structlog
 from fastapi import FastAPI, Query
 from pydantic import BaseModel, Field
 from robotsix_http.fastapi import (
@@ -30,11 +32,12 @@ from robotsix_memory.hindsight_client import (
     HindsightError,
     bank_id,
 )
+from robotsix_memory.logging_config import configure_logging, get_logger
+from robotsix_memory.middleware import CorrelationIdMiddleware
 
-logger = logging.getLogger("robotsix_memory")
+logger = get_logger("robotsix_memory")
 
 settings = load_settings()
-logging.basicConfig(level=settings.log_level.upper())
 
 
 def _package_version() -> str:
@@ -45,7 +48,21 @@ def _package_version() -> str:
         return "0.0.0"
 
 
-app = FastAPI(title="robotsix-memory", version=_package_version())
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    """Initialise structured logging before the app serves any request."""
+    configure_logging(settings.log_level)
+    logger.info("startup", version=_package_version(), hindsight_url=settings.hindsight_url)
+    yield
+    logger.info("shutdown")
+
+
+app = FastAPI(title="robotsix-memory", version=_package_version(), lifespan=lifespan)
+
+# Assign/propagate a correlation id per request and bind it (with the request
+# method and path) into the structlog contextvars context so every log line —
+# including the Hindsight client's — carries it across await boundaries.
+app.add_middleware(CorrelationIdMiddleware)
 
 # Fleet-standard exception-handler suite: request-validation, HTTPException,
 # DomainError, robotsix-http's ExternalHTTPError, and a catch-all unhandled
@@ -124,6 +141,7 @@ async def get_chat_skill() -> dict[str, Any]:
 
 @app.post("/remember", status_code=201)
 async def remember(body: RememberRequest) -> dict[str, Any]:
+    structlog.contextvars.bind_contextvars(owner_id=body.owner_id)
     bank = bank_id(settings.bank_prefix, body.owner_id)
     try:
         result = await client.retain(
@@ -159,6 +177,7 @@ async def recall(
         ),
     ] = None,
 ) -> dict[str, Any]:
+    structlog.contextvars.bind_contextvars(owner_id=owner_id)
     bank = bank_id(settings.bank_prefix, owner_id)
     try:
         result = await client.recall(
@@ -171,6 +190,7 @@ async def recall(
 
 @app.post("/reflect")
 async def reflect(body: ReflectRequest) -> dict[str, Any]:
+    structlog.contextvars.bind_contextvars(owner_id=body.owner_id)
     bank = bank_id(settings.bank_prefix, body.owner_id)
     try:
         result = await client.reflect(bank, body.query)
