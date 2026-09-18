@@ -31,7 +31,6 @@ WORKDIR /home/app
 COPY --from=builder /home/app/.venv /home/app/.venv
 COPY pyproject.toml /home/app/
 COPY src/ /home/app/src/
-COPY config/ /home/app/config-defaults/
 
 EXPOSE 8080
 
