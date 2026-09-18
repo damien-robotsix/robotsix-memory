@@ -8,3 +8,5 @@ __pycache__/
 coverage.xml
 dist/
 *.egg-info/
+# machine-generated artifact from doc-gap scanning tooling
+doc_result.json
