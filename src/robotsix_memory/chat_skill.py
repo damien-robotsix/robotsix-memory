@@ -9,6 +9,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from robotsix_memory.hindsight_client import (
+    RECALL_BUDGET_LOW_MAX_LIMIT,
+    RECALL_BUDGET_MID_MAX_LIMIT,
+)
+
 
 def chat_skill() -> dict[str, Any]:
     """Return the chat-agent skill document for robotsix-memory."""
@@ -90,7 +95,8 @@ def chat_skill() -> dict[str, Any]:
                     "budget": (
                         "optional 'low' | 'mid' | 'high' — engine search "
                         "breadth; default is derived from limit ('low' for "
-                        "limit <= 10, 'mid' up to 50). Higher budgets are "
+                        f"limit <= {RECALL_BUDGET_LOW_MAX_LIMIT}, 'mid' up to "
+                        f"{RECALL_BUDGET_MID_MAX_LIMIT}). Higher budgets are "
                         "slower (cross-encoder reranks every candidate); only "
                         "raise it for a deliberately wide search."
                     ),
