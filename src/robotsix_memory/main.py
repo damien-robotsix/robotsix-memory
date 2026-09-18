@@ -23,7 +23,13 @@ from robotsix_http.fastapi import (
 
 from robotsix_memory.chat_skill import chat_skill
 from robotsix_memory.config import load_settings
-from robotsix_memory.hindsight_client import HindsightClient, HindsightError, bank_id
+from robotsix_memory.hindsight_client import (
+    RECALL_BUDGET_LOW_MAX_LIMIT,
+    RECALL_BUDGET_MID_MAX_LIMIT,
+    HindsightClient,
+    HindsightError,
+    bank_id,
+)
 
 logger = logging.getLogger("robotsix_memory")
 
@@ -146,7 +152,8 @@ async def recall(
         Query(
             description=(
                 "Engine candidate budget. Default is derived from limit "
-                "('low' for limit <= 10, 'mid' up to 50, 'high' beyond); "
+                f"('low' for limit <= {RECALL_BUDGET_LOW_MAX_LIMIT}, "
+                f"'mid' up to {RECALL_BUDGET_MID_MAX_LIMIT}, 'high' beyond); "
                 "pass explicitly to trade latency for a wider search."
             )
         ),

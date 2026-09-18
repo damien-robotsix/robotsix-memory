@@ -10,12 +10,17 @@ in ``tests/unit``.
 from __future__ import annotations
 
 import json
+import pathlib
 from types import SimpleNamespace
 
 import httpx
 import pytest
 from fastapi.testclient import TestClient
 
+from robotsix_memory.hindsight_client import (
+    RECALL_BUDGET_LOW_MAX_LIMIT,
+    RECALL_BUDGET_MID_MAX_LIMIT,
+)
 from robotsix_memory.main import app, settings
 
 client = TestClient(app)
@@ -161,6 +166,39 @@ def test_chat_skill_documents_recall_budget() -> None:
     doc = client.get("/chat-skill").json()
     recall_entry = next(e for e in doc["endpoints"] if e["path"] == "/recall")
     assert "budget" in recall_entry["params"]
+
+
+def test_recall_budget_thresholds_stay_in_sync_with_constants() -> None:
+    """The low/mid thresholds are documented in three prose sites — the
+    /recall route Query description, the chat-skill doc, and the README
+    /recall row. They must embed the ``hindsight_client`` constants so a
+    latency re-tune fails CI until the docs are updated (single source of
+    truth). ``main.py``/``chat_skill.py`` derive their text from the
+    constants; the README is guarded by grepping the rendered value.
+    """
+    low = str(RECALL_BUDGET_LOW_MAX_LIMIT)
+    mid = str(RECALL_BUDGET_MID_MAX_LIMIT)
+
+    # /recall route Query description (via OpenAPI schema).
+    budget_param = next(
+        p for p in app.openapi()["paths"]["/recall"]["get"]["parameters"] if p["name"] == "budget"
+    )
+    route_desc = budget_param["description"]
+    assert f"limit <= {low}" in route_desc
+    assert f"up to {mid}" in route_desc
+
+    # Chat-skill doc served at /chat-skill.
+    doc = client.get("/chat-skill").json()
+    recall_entry = next(e for e in doc["endpoints"] if e["path"] == "/recall")
+    budget_doc = recall_entry["params"]["budget"]
+    assert f"limit <= {low}" in budget_doc
+    assert f"up to {mid}" in budget_doc
+
+    # README /recall row.
+    readme = (pathlib.Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
+    recall_rows = [line for line in readme.splitlines() if "`GET /recall`" in line]
+    assert recall_rows, "README is missing the /recall API row"
+    assert any(f"`limit <= {low}`" in row for row in recall_rows)
 
 
 def test_recall_default_limit_applied(hindsight_mock: SimpleNamespace) -> None:
