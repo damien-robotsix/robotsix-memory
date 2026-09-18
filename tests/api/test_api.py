@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import pathlib
 from types import SimpleNamespace
+from typing import Literal, get_args, get_origin
 
 import httpx
 import pytest
@@ -21,7 +22,7 @@ from robotsix_memory.hindsight_client import (
     RECALL_BUDGET_LOW_MAX_LIMIT,
     RECALL_BUDGET_MID_MAX_LIMIT,
 )
-from robotsix_memory.main import app, settings
+from robotsix_memory.main import ReflectRequest, RememberRequest, app, settings
 
 client = TestClient(app)
 
@@ -199,6 +200,58 @@ def test_recall_budget_thresholds_stay_in_sync_with_constants() -> None:
     recall_rows = [line for line in readme.splitlines() if "`GET /recall`" in line]
     assert recall_rows, "README is missing the /recall API row"
     assert any(f"`limit <= {low}`" in row for row in recall_rows)
+
+
+def test_chat_skill_contract_syncs_with_app() -> None:
+    """The skill doc must stay in lockstep with the app's real contract.
+
+    chat_skill() hand-writes /remember, /recall and /reflect, so a model
+    field renamed or added, a default changed (limit, background,
+    update_mode's Literal), or a route added would silently desync the
+    chat agents that build calls from this document. Regenerate each entry
+    from the app's actual models/routes and fail CI on any drift:
+      * /remember body == RememberRequest.model_fields
+      * /recall params == the /recall route's Query-declared params
+      * /reflect body  == ReflectRequest.model_fields
+    """
+    doc = client.get("/chat-skill").json()
+    endpoints = {e["path"]: e for e in doc["endpoints"]}
+    assert set(endpoints) == {"/remember", "/recall", "/reflect"}
+
+    # /remember body mirrors RememberRequest (fields, requiredness, defaults).
+    remember = endpoints["/remember"]["body"]
+    assert set(remember) == set(RememberRequest.model_fields)
+    required_remember = {
+        name for name, field in RememberRequest.model_fields.items() if field.is_required()
+    }
+    assert {name for name, desc in remember.items() if "(required)" in desc} == required_remember
+    assert RememberRequest.model_fields["background"].default is False
+    assert "default false" in remember["background"]
+    update_annotation = RememberRequest.model_fields["update_mode"].annotation
+    update_members: set[str] = set()
+    for arg in get_args(update_annotation):
+        if get_origin(arg) is Literal:
+            update_members |= set(get_args(arg))
+    assert update_members == {"append", "replace"}
+
+    # /reflect body mirrors ReflectRequest (fields, requiredness).
+    reflect = endpoints["/reflect"]["body"]
+    assert set(reflect) == set(ReflectRequest.model_fields)
+    required_reflect = {
+        name for name, field in ReflectRequest.model_fields.items() if field.is_required()
+    }
+    assert {name for name, desc in reflect.items() if "(required)" in desc} == required_reflect
+
+    # /recall params mirror the route's Query-declared params (names,
+    # requiredness, and the effective limit default).
+    recall_params = endpoints["/recall"]["params"]
+    spec_params = {p["name"]: p for p in app.openapi()["paths"]["/recall"]["get"]["parameters"]}
+    assert set(recall_params) == set(spec_params)
+    documented_required = {name for name, desc in recall_params.items() if "(required)" in desc}
+    assert documented_required == {name for name, p in spec_params.items() if p.get("required")}
+    # The route's limit default is None; the effective one the doc promises
+    # is settings.recall_limit (e.g. "optional int (default 10)").
+    assert f"default {settings.recall_limit}" in recall_params["limit"]
 
 
 def test_recall_default_limit_applied(hindsight_mock: SimpleNamespace) -> None:
