@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/damien-robotsix/robotsix-memory/compare/v0.3.0...v0.3.1) (2026-09-17)
+
+
+### Bug Fixes
+
+* **docker:** upgrade perl-base in the runtime stage to clear the Trivy CRITICAL gate ([#32](https://github.com/damien-robotsix/robotsix-memory/issues/32)) ([fc27284](https://github.com/damien-robotsix/robotsix-memory/commit/fc272841f1467326df8aa79e252cfd74168b162c))
+
 ## [0.3.0](https://github.com/damien-robotsix/robotsix-memory/compare/v0.2.2...v0.3.0) (2026-09-15)
 
 
