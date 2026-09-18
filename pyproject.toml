@@ -15,6 +15,7 @@ dependencies = [
     "pydantic>=2.13.0",
     "robotsix-config>=0.6.0",
     "robotsix-http[fastapi]>=0.4",
+    "starlette>=0.40.0",
     "structlog>=24.1.0",
 ]
 
