@@ -17,7 +17,13 @@ from typing import Literal, get_args, get_origin
 import httpx
 import pytest
 from fastapi.testclient import TestClient
+from robotsix_http.fastapi import (
+    assert_chat_skill_route_parity,
+    documented_routes,
+    parse_chat_skill_frontmatter,
+)
 
+from robotsix_memory.chat_skill import chat_skill
 from robotsix_memory.hindsight_client import (
     RECALL_BUDGET_LOW_MAX_LIMIT,
     RECALL_BUDGET_MID_MAX_LIMIT,
@@ -68,12 +74,14 @@ def test_unhandled_exception_returns_500_envelope(
 
 
 def test_chat_skill_shape() -> None:
+    """The descriptor is served as validated text/markdown+frontmatter."""
     resp = client.get("/chat-skill")
     assert resp.status_code == 200
-    doc = resp.json()
-    assert doc["component"] == "robotsix-memory"
-    paths = {e["path"] for e in doc["endpoints"]}
-    assert paths == {"/remember", "/recall", "/reflect"}
+    assert resp.headers["content-type"].startswith("text/markdown")
+    frontmatter = parse_chat_skill_frontmatter(resp.text)
+    assert frontmatter.name == "robotsix-memory"
+    assert frontmatter.description
+    assert {"/remember", "/recall", "/reflect"} <= documented_routes(resp.text)
 
 
 def test_remember_maps_to_retain(hindsight_mock: SimpleNamespace) -> None:
@@ -164,14 +172,14 @@ def test_recall_rejects_unknown_budget(hindsight_mock: SimpleNamespace) -> None:
 
 
 def test_chat_skill_documents_recall_budget() -> None:
-    doc = client.get("/chat-skill").json()
-    recall_entry = next(e for e in doc["endpoints"] if e["path"] == "/recall")
-    assert "budget" in recall_entry["params"]
+    descriptor = client.get("/chat-skill").text
+    assert "budget" in descriptor
+    assert "`low` | `mid` | `high`" in descriptor
 
 
 def test_recall_budget_thresholds_stay_in_sync_with_constants() -> None:
     """The low/mid thresholds are documented in three prose sites — the
-    /recall route Query description, the chat-skill doc, and the README
+    /recall route Query description, the chat-skill descriptor, and the README
     /recall row. They must embed the ``hindsight_client`` constants so a
     latency re-tune fails CI until the docs are updated (single source of
     truth). ``main.py``/``chat_skill.py`` derive their text from the
@@ -188,12 +196,10 @@ def test_recall_budget_thresholds_stay_in_sync_with_constants() -> None:
     assert f"limit <= {low}" in route_desc
     assert f"up to {mid}" in route_desc
 
-    # Chat-skill doc served at /chat-skill.
-    doc = client.get("/chat-skill").json()
-    recall_entry = next(e for e in doc["endpoints"] if e["path"] == "/recall")
-    budget_doc = recall_entry["params"]["budget"]
-    assert f"limit <= {low}" in budget_doc
-    assert f"up to {mid}" in budget_doc
+    # Chat-skill descriptor served at /chat-skill.
+    descriptor = client.get("/chat-skill").text
+    assert f"limit <= {low}" in descriptor
+    assert f"up to {mid}" in descriptor
 
     # README /recall row.
     readme = (pathlib.Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
@@ -203,55 +209,35 @@ def test_recall_budget_thresholds_stay_in_sync_with_constants() -> None:
 
 
 def test_chat_skill_contract_syncs_with_app() -> None:
-    """The skill doc must stay in lockstep with the app's real contract.
+    """The descriptor must stay in lockstep with the app's real contract.
 
-    chat_skill() hand-writes /remember, /recall and /reflect, so a model
-    field renamed or added, a default changed (limit, background,
-    update_mode's Literal), or a route added would silently desync the
-    chat agents that build calls from this document. Regenerate each entry
-    from the app's actual models/routes and fail CI on any drift:
-      * /remember body == RememberRequest.model_fields
-      * /recall params == the /recall route's Query-declared params
-      * /reflect body  == ReflectRequest.model_fields
+    The shared ``create_chat_skill_router`` serves a markdown+frontmatter
+    descriptor rather than a machine-introspectable JSON dict, so the fleet
+    standard enforces sync at the *route* level: every route registered on
+    the app must be documented in the descriptor and vice versa
+    (``assert_chat_skill_route_parity``). ``/health/live`` and
+    ``/health/hindsight`` are container/engine infra, ignored here. On top of
+    parity we assert each request model's field names still appear verbatim in
+    the descriptor, so a renamed/added ``RememberRequest``/``ReflectRequest``
+    field fails CI until the descriptor is updated.
     """
-    doc = client.get("/chat-skill").json()
-    endpoints = {e["path"]: e for e in doc["endpoints"]}
-    assert set(endpoints) == {"/remember", "/recall", "/reflect"}
+    assert_chat_skill_route_parity(app, chat_skill(), ignore={"/health/live", "/health/hindsight"})
 
-    # /remember body mirrors RememberRequest (fields, requiredness, defaults).
-    remember = endpoints["/remember"]["body"]
-    assert set(remember) == set(RememberRequest.model_fields)
-    required_remember = {
-        name for name, field in RememberRequest.model_fields.items() if field.is_required()
-    }
-    assert {name for name, desc in remember.items() if "(required)" in desc} == required_remember
-    assert RememberRequest.model_fields["background"].default is False
-    assert "default false" in remember["background"]
+    descriptor = chat_skill()
+    for name in RememberRequest.model_fields:
+        assert name in descriptor, f"/remember field {name!r} missing from chat-skill descriptor"
+    for name in ReflectRequest.model_fields:
+        assert name in descriptor, f"/reflect field {name!r} missing from chat-skill descriptor"
+
+    # update_mode's Literal members must both be advertised.
     update_annotation = RememberRequest.model_fields["update_mode"].annotation
     update_members: set[str] = set()
     for arg in get_args(update_annotation):
         if get_origin(arg) is Literal:
             update_members |= set(get_args(arg))
     assert update_members == {"append", "replace"}
-
-    # /reflect body mirrors ReflectRequest (fields, requiredness).
-    reflect = endpoints["/reflect"]["body"]
-    assert set(reflect) == set(ReflectRequest.model_fields)
-    required_reflect = {
-        name for name, field in ReflectRequest.model_fields.items() if field.is_required()
-    }
-    assert {name for name, desc in reflect.items() if "(required)" in desc} == required_reflect
-
-    # /recall params mirror the route's Query-declared params (names,
-    # requiredness, and the effective limit default).
-    recall_params = endpoints["/recall"]["params"]
-    spec_params = {p["name"]: p for p in app.openapi()["paths"]["/recall"]["get"]["parameters"]}
-    assert set(recall_params) == set(spec_params)
-    documented_required = {name for name, desc in recall_params.items() if "(required)" in desc}
-    assert documented_required == {name for name, p in spec_params.items() if p.get("required")}
-    # The route's limit default is None; the effective one the doc promises
-    # is settings.recall_limit (e.g. "optional int (default 10)").
-    assert f"default {settings.recall_limit}" in recall_params["limit"]
+    for member in update_members:
+        assert member in descriptor
 
 
 def test_recall_default_limit_applied(hindsight_mock: SimpleNamespace) -> None:
