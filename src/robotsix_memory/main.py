@@ -19,6 +19,7 @@ from fastapi import FastAPI, Query
 from pydantic import BaseModel, Field
 from robotsix_http.fastapi import (
     DomainError,
+    create_chat_skill_router,
     create_health_router,
     register_exception_handlers,
 )
@@ -72,6 +73,11 @@ register_exception_handlers(app)
 # Fleet-standard GET /health -> {"status": "ok"}. The bespoke /health/live
 # (container liveness) and /health/hindsight (engine reachability) stay below.
 app.include_router(create_health_router())
+
+# Fleet-standard GET /chat-skill serving the markdown+frontmatter chat-access
+# descriptor as text/markdown. The descriptor's frontmatter is validated at
+# router-construction time and its `name` asserted against the component id.
+app.include_router(create_chat_skill_router(chat_skill(), name="robotsix-memory"))
 
 client = HindsightClient(
     settings.hindsight_url,
@@ -132,11 +138,6 @@ async def health_hindsight() -> dict[str, str]:
     """Full status including engine reachability."""
     hindsight = "ok" if await client.ping() else "unreachable"
     return {"status": "ok", "hindsight": hindsight}
-
-
-@app.get("/chat-skill")
-async def get_chat_skill() -> dict[str, Any]:
-    return chat_skill()
 
 
 @app.post("/remember", status_code=201)
