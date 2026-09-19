@@ -15,6 +15,7 @@ dependencies = [
     "pydantic>=2.13.0",
     "robotsix-config>=0.6.0",
     "robotsix-http[fastapi]>=0.4",
+    "robotsix-llmio>=0.7.6",
     "starlette>=0.40.0",
     "structlog>=24.1.0",
 ]
@@ -31,10 +32,18 @@ dev = [
 
 [tool.uv]
 required-version = ">=0.12.5"
+# robotsix-llmio pins robotsix-http at an older rev via its own tool.uv.sources;
+# force the whole resolution (including that transitive requirement) onto
+# memory's newer robotsix-http rev, which satisfies llmio's ">= 0.3.2" floor, so
+# the conflicting transitive git URLs collapse onto one rev.
+override-dependencies = [
+    "robotsix-http @ git+https://github.com/damien-robotsix/robotsix-http.git@c9886b58e3feef5bf3c7e7c56f69dd84c211ac7c",
+]
 
 [tool.uv.sources]
 robotsix-config = { git = "https://github.com/damien-robotsix/robotsix-config.git", rev = "8b9fa37f53b179986ca8b8f603d8786b9aa06018" }
 robotsix-http = { git = "https://github.com/damien-robotsix/robotsix-http.git", rev = "c9886b58e3feef5bf3c7e7c56f69dd84c211ac7c" }
+robotsix-llmio = { git = "https://github.com/damien-robotsix/robotsix-llmio.git", rev = "d82bf43a4de36acf5b8ef3ce9442c5cf9a6621c9" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/robotsix_memory"]
