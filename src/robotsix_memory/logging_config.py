@@ -1,21 +1,29 @@
-"""Structured logging setup for robotsix-memory using ``structlog``.
+"""Structured logging setup for robotsix-memory.
 
-Emits JSON in production (``ENVIRONMENT=production``) for log aggregation
-systems (Datadog, ELK, CloudWatch) and coloured, human-readable console
-output in development. ``structlog.contextvars.merge_contextvars`` folds any
-context bound with ``structlog.contextvars.bind_contextvars`` (e.g. the
-correlation id and ``owner_id``) into every event, and because that context
-lives in :mod:`contextvars` it propagates automatically across ``await``
-boundaries in async code.
+The structlog + stdlib ``ProcessorFormatter`` bridge is no longer hand-rolled
+here: it is delegated to the shared
+:func:`robotsix_llmio.logging.setup_structlog` helper that the rest of the
+fleet (chat, central-deploy, …) already uses. ``setup_structlog`` wires a
+single root ``ProcessorFormatter`` so structlog-native *and* foreign stdlib
+records render through one processor chain and one renderer, stamps the active
+OpenTelemetry trace id, and — with ``correlation_id=True`` — merges any value
+bound through :mod:`structlog.contextvars` (e.g. the correlation id and
+``owner_id`` bound by
+:class:`~robotsix_memory.middleware.CorrelationIdMiddleware`) onto every event,
+propagating automatically across ``await`` boundaries in async code.
+
+JSON is emitted when ``ENVIRONMENT=production`` (for log aggregation systems
+such as Datadog, ELK, CloudWatch); a coloured, human-readable console renderer
+is used otherwise.
 """
 
 from __future__ import annotations
 
-import logging
 import os
-from typing import Any
+from typing import Any, TextIO
 
 import structlog
+from robotsix_llmio.logging import setup_structlog
 
 
 def _is_production() -> bool:
@@ -23,33 +31,28 @@ def _is_production() -> bool:
     return os.environ.get("ENVIRONMENT", "").strip().lower() == "production"
 
 
-def configure_logging(log_level: str = "INFO") -> None:
-    """Initialise ``structlog`` once at application startup.
+def configure_logging(log_level: str = "INFO", *, stream: TextIO | None = None) -> None:
+    """Initialise structlog + stdlib logging once at application startup.
 
-    JSON rendering when ``ENVIRONMENT=production``; a coloured console
-    renderer otherwise. The shared processor chain timestamps every event,
-    adds the log level, renders exception info, and merges the contextvars
-    context so correlation ids and ``owner_id`` appear on every line.
+    Delegates the shared processor chain and renderer to
+    :func:`robotsix_llmio.logging.setup_structlog`. JSON rendering when
+    ``ENVIRONMENT=production``; a coloured console renderer otherwise.
+    ``correlation_id=True`` enables the contextvars merge processor so the
+    correlation id and ``owner_id`` bound by
+    :class:`~robotsix_memory.middleware.CorrelationIdMiddleware` appear on every
+    log line.
+
+    Args:
+        log_level: Log level name (e.g. ``"INFO"``). An unrecognised value
+            falls back to ``INFO``.
+        stream: Target stream for the log handler. Defaults to ``sys.stdout``.
     """
-    level = getattr(logging, log_level.upper(), logging.INFO)
-
-    shared_processors: list[Any] = [
-        structlog.contextvars.merge_contextvars,
-        structlog.processors.add_log_level,
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,
-    ]
-
-    renderer: Any = (
-        structlog.processors.JSONRenderer() if _is_production() else structlog.dev.ConsoleRenderer()
-    )
-
-    structlog.configure(
-        processors=[*shared_processors, renderer],
-        wrapper_class=structlog.make_filtering_bound_logger(level),
-        logger_factory=structlog.PrintLoggerFactory(),
-        cache_logger_on_first_use=True,
+    setup_structlog(
+        level=log_level,
+        fmt="json" if _is_production() else "console",
+        loggers=("robotsix_memory",),
+        stream=stream,
+        correlation_id=True,
     )
 
 
