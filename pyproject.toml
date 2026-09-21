@@ -41,9 +41,9 @@ override-dependencies = [
 ]
 
 [tool.uv.sources]
-robotsix-config = { git = "https://github.com/damien-robotsix/robotsix-config.git", rev = "8b9fa37f53b179986ca8b8f603d8786b9aa06018" }
-robotsix-http = { git = "https://github.com/damien-robotsix/robotsix-http.git", rev = "4bf6c1e317ccdf4f2e2764ad05c97a456b1ca0a1" }
-robotsix-llmio = { git = "https://github.com/damien-robotsix/robotsix-llmio.git", rev = "d82bf43a4de36acf5b8ef3ce9442c5cf9a6621c9" }
+robotsix-config = { git = "https://github.com/damien-robotsix/robotsix-config.git", rev = "62c44807199d1538d30d3893834c166ea9704ffa" }
+robotsix-http = { git = "https://github.com/damien-robotsix/robotsix-http.git", rev = "3ab91ede1251a4e8990da5fdc5dbefbcdf9be0a1" }
+robotsix-llmio = { git = "https://github.com/damien-robotsix/robotsix-llmio.git", rev = "eb0b9ecdcd58622e9b1f8e1c86c69b8b301379ad" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/robotsix_memory"]
