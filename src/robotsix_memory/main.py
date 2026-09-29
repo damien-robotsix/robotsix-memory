@@ -18,6 +18,7 @@ import structlog
 from fastapi import FastAPI, Query
 from pydantic import BaseModel, Field
 from robotsix_http.fastapi import (
+    CorrelationIdMiddleware,
     DomainError,
     create_chat_skill_router,
     create_health_router,
@@ -34,7 +35,6 @@ from robotsix_memory.hindsight_client import (
     bank_id,
 )
 from robotsix_memory.logging_config import configure_logging, get_logger
-from robotsix_memory.middleware import CorrelationIdMiddleware
 
 logger = get_logger("robotsix_memory")
 
@@ -62,8 +62,17 @@ app = FastAPI(title="robotsix-memory", version=_package_version(), lifespan=life
 
 # Assign/propagate a correlation id per request and bind it (with the request
 # method and path) into the structlog contextvars context so every log line —
-# including the Hindsight client's — carries it across await boundaries.
-app.add_middleware(CorrelationIdMiddleware)
+# including the Hindsight client's — carries it across await boundaries. The
+# shared robotsix-http middleware is configured with memory's header name,
+# context key and request.start/end timing logs (routed through memory's own
+# logger namespace).
+app.add_middleware(
+    CorrelationIdMiddleware,
+    header_name="X-Request-ID",
+    context_field="correlation_id",
+    log_requests=True,
+    logger=get_logger("robotsix_memory.request"),
+)
 
 # Fleet-standard exception-handler suite: request-validation, HTTPException,
 # DomainError, robotsix-http's ExternalHTTPError, and a catch-all unhandled

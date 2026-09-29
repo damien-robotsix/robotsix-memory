@@ -9,7 +9,7 @@ records render through one processor chain and one renderer, stamps the active
 OpenTelemetry trace id, and — with ``correlation_id=True`` — merges any value
 bound through :mod:`structlog.contextvars` (e.g. the correlation id and
 ``owner_id`` bound by
-:class:`~robotsix_memory.middleware.CorrelationIdMiddleware`) onto every event,
+:class:`robotsix_http.fastapi.CorrelationIdMiddleware`) onto every event,
 propagating automatically across ``await`` boundaries in async code.
 
 JSON is emitted when ``ENVIRONMENT=production`` (for log aggregation systems
@@ -39,7 +39,7 @@ def configure_logging(log_level: str = "INFO", *, stream: TextIO | None = None) 
     ``ENVIRONMENT=production``; a coloured console renderer otherwise.
     ``correlation_id=True`` enables the contextvars merge processor so the
     correlation id and ``owner_id`` bound by
-    :class:`~robotsix_memory.middleware.CorrelationIdMiddleware` appear on every
+    :class:`robotsix_http.fastapi.CorrelationIdMiddleware` appear on every
     log line.
 
     Args:
