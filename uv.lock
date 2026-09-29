@@ -7,7 +7,7 @@ resolution-markers = [
 ]
 
 [manifest]
-overrides = [{ name = "robotsix-http", git = "https://github.com/damien-robotsix/robotsix-http.git?rev=4bf6c1e317ccdf4f2e2764ad05c97a456b1ca0a1" }]
+overrides = [{ name = "robotsix-http", git = "https://github.com/damien-robotsix/robotsix-http.git?rev=2fc08979da9a443bd28889aae14d55838b53d4ee" }]
 
 [[package]]
 name = "annotated-doc"
@@ -806,7 +806,7 @@ dependencies = [
 [[package]]
 name = "robotsix-http"
 version = "0.6.0"
-source = { git = "https://github.com/damien-robotsix/robotsix-http.git?rev=4bf6c1e317ccdf4f2e2764ad05c97a456b1ca0a1#4bf6c1e317ccdf4f2e2764ad05c97a456b1ca0a1" }
+source = { git = "https://github.com/damien-robotsix/robotsix-http.git?rev=2fc08979da9a443bd28889aae14d55838b53d4ee#2fc08979da9a443bd28889aae14d55838b53d4ee" }
 dependencies = [
     { name = "httpcore" },
     { name = "httpx" },
@@ -838,7 +838,6 @@ dependencies = [
     { name = "robotsix-config" },
     { name = "robotsix-http" },
     { name = "robotsix-llmio" },
-    { name = "starlette" },
     { name = "structlog" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -859,9 +858,8 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.0" },
     { name = "pydantic", specifier = ">=2.13.0" },
     { name = "robotsix-config", git = "https://github.com/damien-robotsix/robotsix-config.git?rev=8b9fa37f53b179986ca8b8f603d8786b9aa06018" },
-    { name = "robotsix-http", extras = ["fastapi"], git = "https://github.com/damien-robotsix/robotsix-http.git?rev=4bf6c1e317ccdf4f2e2764ad05c97a456b1ca0a1" },
+    { name = "robotsix-http", extras = ["fastapi"], git = "https://github.com/damien-robotsix/robotsix-http.git?rev=2fc08979da9a443bd28889aae14d55838b53d4ee" },
     { name = "robotsix-llmio", git = "https://github.com/damien-robotsix/robotsix-llmio.git?rev=d82bf43a4de36acf5b8ef3ce9442c5cf9a6621c9" },
-    { name = "starlette", specifier = ">=0.40.0" },
     { name = "structlog", specifier = ">=24.1.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.3" },
 ]

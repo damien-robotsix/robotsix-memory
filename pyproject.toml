@@ -16,7 +16,6 @@ dependencies = [
     "robotsix-config>=0.6.0",
     "robotsix-http[fastapi]>=0.6",
     "robotsix-llmio>=0.7.6",
-    "starlette>=0.40.0",
     "structlog>=24.1.0",
 ]
 
@@ -37,12 +36,12 @@ required-version = ">=0.12.5"
 # memory's newer robotsix-http rev, which satisfies llmio's ">= 0.3.2" floor, so
 # the conflicting transitive git URLs collapse onto one rev.
 override-dependencies = [
-    "robotsix-http @ git+https://github.com/damien-robotsix/robotsix-http.git@4bf6c1e317ccdf4f2e2764ad05c97a456b1ca0a1",
+    "robotsix-http @ git+https://github.com/damien-robotsix/robotsix-http.git@2fc08979da9a443bd28889aae14d55838b53d4ee",
 ]
 
 [tool.uv.sources]
 robotsix-config = { git = "https://github.com/damien-robotsix/robotsix-config.git", rev = "8b9fa37f53b179986ca8b8f603d8786b9aa06018" }
-robotsix-http = { git = "https://github.com/damien-robotsix/robotsix-http.git", rev = "4bf6c1e317ccdf4f2e2764ad05c97a456b1ca0a1" }
+robotsix-http = { git = "https://github.com/damien-robotsix/robotsix-http.git", rev = "2fc08979da9a443bd28889aae14d55838b53d4ee" }
 robotsix-llmio = { git = "https://github.com/damien-robotsix/robotsix-llmio.git", rev = "d82bf43a4de36acf5b8ef3ce9442c5cf9a6621c9" }
 
 [tool.hatch.build.targets.wheel]
