@@ -16,7 +16,6 @@ dependencies = [
     "robotsix-config>=0.6.0",
     "robotsix-http[fastapi]>=0.6",
     "robotsix-llmio>=0.7.6",
-    "starlette>=0.40.0",
     "structlog>=24.1.0",
 ]
 
