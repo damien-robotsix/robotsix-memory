@@ -33,7 +33,7 @@ services:
       retries: 3
 
   memory-hindsight:
-    image: ghcr.io/vectorize-io/hindsight:0.10.1@sha256:b4d3b76f363aa40cf348450e7f8f52a50653008731b99824b14623a196182e73
+    image: ghcr.io/vectorize-io/hindsight:0.10.2@sha256:d1840062a5b79940ab7a9f4809ceb90fc776d4ad737cd9329e9b5836cc64ab70
     container_name: memory-hindsight
     shm_size: "1gb"
     environment:
