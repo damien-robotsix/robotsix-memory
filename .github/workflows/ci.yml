@@ -14,7 +14,7 @@ jobs:
     permissions:
       contents: read
       security-events: write # SARIF upload from the reusable workflow
-    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-ci.yml@d2a2353830cf211a9f18f3585085016766294dff # main
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-ci.yml@188518bece972d7d5f1c4e2a0f2226d2526dc0fa # main
     with:
       python-version: "3.14"
       # Must match required-version in pyproject.toml ([tool.uv]).
@@ -47,6 +47,6 @@ jobs:
         continue-on-error: true
         run: uv audit --frozen --output-format sarif > uv-audit.sarif
       - name: Upload uv audit SARIF to code scanning
-        uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
           sarif_file: uv-audit.sarif
