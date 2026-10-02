@@ -167,6 +167,34 @@ class HindsightClient:
         update_mode: str | None = None,
         background: bool = False,
     ) -> Any:
+        """Persist a memory item to the Hindsight bank.
+
+        Constructs and submits a memory item with optional metadata
+        (timestamp, context, tags, document grouping) to the engine's
+        ``/banks/{bank}/memories`` endpoint.
+
+        Args:
+            bank: Target bank ID (e.g., from ``bank_id(prefix, owner_id)``).
+            content: The fact or event to remember; should be complete and
+                self-contained.
+            timestamp: Optional ISO 8601 timestamp when the fact became true.
+            context: Optional context (source, reason) for how this fact was
+                learned.
+            tags: Optional topical tags for filtered recall.
+            document_id: Optional document grouping; with ``update_mode``,
+                enables rolling-summary dedup.
+            update_mode: ``'append'`` (default) or ``'replace'``; with
+                ``document_id``, replace supersedes prior facts.
+            background: If True, runs fact extraction asynchronously (returns
+                an operation ID instead of the result).
+
+        Returns:
+            Engine response (dict) with operation details or async operation
+            ID.
+
+        Raises:
+            HindsightError: If the engine returns an error or is unreachable.
+        """
         item: dict[str, Any] = {"content": content}
         if timestamp:
             item["timestamp"] = timestamp
@@ -194,6 +222,33 @@ class HindsightClient:
         tags: list[str] | None = None,
         budget: str | None = None,
     ) -> Any:
+        """Search an owner's memories via natural-language query.
+
+        Retrieves ranked memories from the bank with configurable search
+        budget and result limit. The engine sizes its candidate pool by
+        budget (``'low'``/``'mid'``/``'high'``); this wrapper applies the
+        caller's limit to enforce a guaranteed result ceiling and avoids
+        returning more results than needed.
+
+        Args:
+            bank: Target bank ID.
+            query: Natural-language search query.
+            limit: Maximum number of results to return (1–100).
+            tags: Optional topical filters; results must match one or more
+                tags if provided.
+            budget: Engine candidate-pool budget (``'low'``, ``'mid'``,
+                ``'high'``). Default is derived from limit: low for
+                ``limit <= RECALL_BUDGET_LOW_MAX_LIMIT`` (10), mid up to
+                ``RECALL_BUDGET_MID_MAX_LIMIT`` (50), high beyond. Higher
+                budgets are slower.
+
+        Returns:
+            Dict with ``'results'`` key (list of ranked memory objects) and
+            other engine metadata.
+
+        Raises:
+            HindsightError: If the engine returns an error or is unreachable.
+        """
         body: dict[str, Any] = {
             "query": query,
             "budget": budget or recall_budget_for(limit),
