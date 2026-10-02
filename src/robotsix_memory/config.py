@@ -35,9 +35,12 @@ class Settings(ConfigModel):
 def load_settings() -> Settings:
     """Build settings: the JSON config file is the single source of values.
 
-    ``MEMORY_HINDSIGHT_URL`` is the one kept env-prefix override — the
-    sibling Hindsight engine's endpoint genuinely varies per deployment, so
-    it wins over the file value.
+    ``MEMORY_HINDSIGHT_URL`` is the one kept env-prefix override of a
+    settings value — the sibling Hindsight engine's endpoint genuinely
+    varies per deployment, so it wins over the file value. (A second
+    deploy-time env var, ``ENVIRONMENT``, is read by
+    :mod:`robotsix_memory.logging_config` to switch log rendering to JSON
+    in production; it does not feed into these settings.)
     """
     settings = load_config(Settings)
     hindsight_url = os.environ.get("MEMORY_HINDSIGHT_URL")
