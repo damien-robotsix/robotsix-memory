@@ -151,6 +151,27 @@ async def health_hindsight() -> dict[str, str]:
 
 @app.post("/remember", status_code=201)
 async def remember(body: RememberRequest) -> dict[str, Any]:
+    """POST /remember: Store a durable fact in the memory bank.
+
+    Endpoint handler binding ``owner_id`` to the request context, routing to
+    the Hindsight engine's retain endpoint, and mapping engine errors to the
+    standard DomainError envelope.
+
+    Request body (RememberRequest):
+        - content (str, required): Self-contained fact/event to remember.
+        - owner_id (str, required): Memory scope (e.g., ``'operator'``,
+          ``'periodic:preset'``).
+        - tags, context, timestamp, document_id, update_mode, background:
+          Optional metadata (see chat_skill docstring for details).
+
+    Returns:
+        Dict with ``'stored'`` (bool), ``'owner_id'`` (str), and ``'engine'``
+        (engine response dict).
+
+    Raises:
+        DomainError: If the engine returns an error; status 502 if
+            unreachable.
+    """
     structlog.contextvars.bind_contextvars(owner_id=body.owner_id)
     bank = bank_id(settings.bank_prefix, body.owner_id)
     try:
