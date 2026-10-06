@@ -7,7 +7,7 @@ on:
 
 jobs:
   docker-release:
-    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/docker-release.yml@188518bece972d7d5f1c4e2a0f2226d2526dc0fa
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/docker-release.yml@c4caf23ade98668434145f5b1abd3bc42cec63e7
     permissions:
       contents: read
       packages: write
