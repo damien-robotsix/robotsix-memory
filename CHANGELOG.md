@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/damien-robotsix/robotsix-memory/compare/v0.3.1...v0.3.2) (2026-10-06)
+
+
+### Bug Fixes
+
+* **ci:** bump the shared Docker workflow pin so the hardening render step runs from the shared repo ([#56](https://github.com/damien-robotsix/robotsix-memory/issues/56)) ([cb40580](https://github.com/damien-robotsix/robotsix-memory/commit/cb40580555fedca6cb300b313423645aaee4eb29))
+
 ## [0.3.1](https://github.com/damien-robotsix/robotsix-memory/compare/v0.3.0...v0.3.1) (2026-09-17)
 
 
