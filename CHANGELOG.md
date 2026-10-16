@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/damien-robotsix/robotsix-memory/compare/v0.3.2...v0.4.0) (2026-10-16)
+
+
+### Features
+
+* Add Prometheus metrics instrumentation to robotsix-memory (20261016T152337Z-add-prometheus-metrics-instrumentation-t-e341) ([#76](https://github.com/damien-robotsix/robotsix-memory/issues/76)) ([ccd56ad](https://github.com/damien-robotsix/robotsix-memory/commit/ccd56add0b212d4a995d0b582bb1ce246a547e3d))
+
 ## [0.3.2](https://github.com/damien-robotsix/robotsix-memory/compare/v0.3.1...v0.3.2) (2026-10-06)
 
 
