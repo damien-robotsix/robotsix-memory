@@ -8,6 +8,7 @@ API and the chat skill; the engine stays swappable.
 
 from __future__ import annotations
 
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from importlib.metadata import PackageNotFoundError
@@ -16,6 +17,8 @@ from typing import Annotated, Any, Literal
 
 import structlog
 from fastapi import FastAPI, Query
+from prometheus_client import start_http_server
+from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel, Field
 from robotsix_http.fastapi import (
     CorrelationIdMiddleware,
@@ -41,6 +44,17 @@ logger = get_logger("robotsix_memory")
 settings = load_settings()
 
 
+def _metrics_enabled() -> bool:
+    """Whether Prometheus instrumentation is on (``ENABLE_METRICS`` env var).
+
+    Metrics are opt-in: observability is a deploy-time concern and the
+    scraped ``/metrics`` endpoint must stay behind the firewall, so it stays
+    off unless a deployment explicitly sets ``ENABLE_METRICS`` to a truthy
+    value (``1``/``true``/``yes``/``on``, case-insensitive).
+    """
+    return os.environ.get("ENABLE_METRICS", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _package_version() -> str:
     """Report the installed distribution version (falls back for source checkouts)."""
     try:
@@ -51,8 +65,17 @@ def _package_version() -> str:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    """Initialise structured logging before the app serves any request."""
+    """Initialise structured logging before the app serves any request.
+
+    When metrics are enabled (``ENABLE_METRICS``) a Prometheus exposition
+    endpoint is started on its own port (``metrics_port``, default 8001) in a
+    background thread, keeping ``/metrics`` off the fleet-facing API port so
+    it can be firewalled independently.
+    """
     configure_logging(settings.log_level)
+    if _metrics_enabled():
+        start_http_server(settings.metrics_port)
+        logger.info("metrics_server_started", port=settings.metrics_port)
     logger.info("startup", version=_package_version(), hindsight_url=settings.hindsight_url)
     yield
     logger.info("shutdown")
@@ -78,6 +101,14 @@ app.add_middleware(
 # DomainError, robotsix-http's ExternalHTTPError, and a catch-all unhandled
 # handler — all rendering the shared {"error": {"code", "detail"}} envelope.
 register_exception_handlers(app)
+
+# Opt-in Prometheus instrumentation: auto-capture per-request latency, volume
+# and error-rate metrics via middleware. Wired before the routers so every
+# route (including the health/chat-skill routers below) is measured. The
+# scraped exposition endpoint is served on a separate port from the lifespan
+# (see ``metrics_port``), not mounted on this app.
+if _metrics_enabled():
+    Instrumentator().instrument(app)
 
 # Fleet-standard GET /health -> {"status": "ok"}. The bespoke /health/live
 # (container liveness) and /health/hindsight (engine reachability) stay below.

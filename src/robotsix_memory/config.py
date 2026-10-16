@@ -30,6 +30,7 @@ class Settings(ConfigModel):
     recall_limit: int = 10
     bank_prefix: str = "fleet"
     log_level: str = "INFO"
+    metrics_port: int = 8001
 
 
 def load_settings() -> Settings:
