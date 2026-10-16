@@ -47,6 +47,30 @@ behaviour and are set per deployment (see `deploy/docker-compose.yml`):
 | `ENVIRONMENT` | When set to `production`, the logger emits JSON (for Datadog/ELK/CloudWatch) instead of the coloured console renderer. | unset (console renderer) |
 | `MEMORY_HINDSIGHT_URL` | Overrides `hindsight_url`, the sibling Hindsight engine endpoint; the one kept per-deployment override of a settings value. | `http://memory-hindsight:8888` |
 | `ROBOTSIX_CONFIG_FILE` | Path to the single JSON config file consumed by `robotsix_config.load_config`. | `config/config.json` |
+| `ENABLE_METRICS` | When truthy (`1`/`true`/`yes`/`on`), enables Prometheus instrumentation and serves the `/metrics` exposition endpoint on a separate port. | unset (metrics off) |
+
+## Metrics
+
+Prometheus metrics are **opt-in**. Set `ENABLE_METRICS=true` to turn on
+request-level instrumentation (latency histograms, request counts, error
+rates captured automatically via middleware). When enabled, the wrapper
+starts a dedicated exposition server in a background thread on
+`metrics_port` (config setting, default `8001`) — separate from the
+fleet-facing API port — so the two can be firewalled independently.
+
+Scrape it with a Prometheus job pointed at that port:
+
+```yaml
+scrape_configs:
+  - job_name: robotsix-memory
+    static_configs:
+      - targets: ["memory:8001"]
+```
+
+> **Security:** `/metrics` exposes operational internals and has no
+> authentication. Keep the metrics port behind the firewall (reachable
+> only from the Prometheus scraper / internal network) or front it with
+> an authenticating reverse proxy. Never publish it to the internet.
 
 ## Development
 

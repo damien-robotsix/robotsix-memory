@@ -16,6 +16,11 @@
       "title": "Log Level",
       "type": "string"
     },
+    "metrics_port": {
+      "default": 8001,
+      "title": "Metrics Port",
+      "type": "integer"
+    },
     "recall_limit": {
       "default": 10,
       "title": "Recall Limit",

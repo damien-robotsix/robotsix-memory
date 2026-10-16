@@ -32,6 +32,7 @@ def test_load_settings_defaults_without_config_file(
     assert settings.recall_limit == 10
     assert settings.bank_prefix == "fleet"
     assert settings.log_level == "INFO"
+    assert settings.metrics_port == 8001
 
 
 def test_load_settings_uses_file_values_as_base(
