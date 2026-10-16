@@ -35,6 +35,19 @@ container only — Docker restarts it while the wrapper keeps answering
 Memories are scoped per `owner_id` (one Hindsight bank per owner):
 `operator`, `periodic:<preset>`, or a component name.
 
+## Configuration
+
+The component reads its runtime values from a single JSON config file
+(see `config/config.json`); the deploy plane owns that file. A small set
+of deploy-time environment variables override or influence runtime
+behaviour and are set per deployment (see `deploy/docker-compose.yml`):
+
+| Variable | Effect | Default |
+| --- | --- | --- |
+| `ENVIRONMENT` | When set to `production`, the logger emits JSON (for Datadog/ELK/CloudWatch) instead of the coloured console renderer. | unset (console renderer) |
+| `MEMORY_HINDSIGHT_URL` | Overrides `hindsight_url`, the sibling Hindsight engine endpoint; the one kept per-deployment override of a settings value. | `http://memory-hindsight:8888` |
+| `ROBOTSIX_CONFIG_FILE` | Path to the single JSON config file consumed by `robotsix_config.load_config`. | `config/config.json` |
+
 ## Development
 
 ```bash
