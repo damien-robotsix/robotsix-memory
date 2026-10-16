@@ -267,6 +267,18 @@ class HindsightClient:
         return result
 
     async def reflect(self, bank: str, query: str) -> Any:
+        """Reason over an owner's memories to answer a question.
+
+        Args:
+            bank: Target bank ID.
+            query: Natural-language question to reason about.
+
+        Returns:
+            Dict with the engine's reflection result.
+
+        Raises:
+            HindsightError: If the engine returns an error or is unreachable.
+        """
         return await self._request(
             "POST",
             f"/v1/default/banks/{bank}/reflect",
