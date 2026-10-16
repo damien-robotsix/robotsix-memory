@@ -208,6 +208,29 @@ async def recall(
         ),
     ] = None,
 ) -> dict[str, Any]:
+    """Search an owner's memories via a natural-language query.
+
+    Args:
+        query: Natural-language search string to match against stored
+            memories.
+        owner_id: Memory scope identifier; results are restricted to this
+            owner's bank.
+        limit: Maximum number of results to return (1-100). Defaults to the
+            configured ``recall_limit`` when omitted.
+        tags: Optional topical filters that narrow results to memories
+            carrying all of the given tags.
+        budget: Engine candidate-pool sizing strategy ("low", "mid" or
+            "high"). Defaults to a value derived from ``limit``; pass
+            explicitly to trade latency for a wider search.
+
+    Returns:
+        A dict with the resolved ``owner_id`` and the ``results`` list
+        returned by the recall engine.
+
+    Raises:
+        DomainError: Translated from any :class:`HindsightError` raised by
+            the underlying engine via :func:`_domain_error_for`.
+    """
     structlog.contextvars.bind_contextvars(owner_id=owner_id)
     bank = bank_id(settings.bank_prefix, owner_id)
     try:
@@ -221,6 +244,23 @@ async def recall(
 
 @app.post("/reflect")
 async def reflect(body: ReflectRequest) -> dict[str, Any]:
+    """Reason over an owner's memories to answer a question.
+
+    Unlike :func:`recall`, which performs a lookup, this endpoint asks the
+    engine to synthesise an answer from the owner's stored memories.
+
+    Args:
+        body: Request payload carrying the ``query`` to reason about and the
+            ``owner_id`` whose memories define the reasoning scope.
+
+    Returns:
+        A dict with the resolved ``owner_id`` and the engine's
+        ``reflection`` answer.
+
+    Raises:
+        DomainError: Translated from any :class:`HindsightError` raised by
+            the underlying engine via :func:`_domain_error_for`.
+    """
     structlog.contextvars.bind_contextvars(owner_id=body.owner_id)
     bank = bank_id(settings.bank_prefix, body.owner_id)
     try:
