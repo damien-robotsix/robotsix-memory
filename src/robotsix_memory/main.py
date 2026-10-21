@@ -174,10 +174,20 @@ async def health_live() -> dict[str, str]:
 
 
 @app.get("/health/hindsight")
-async def health_hindsight() -> dict[str, str]:
-    """Full status including engine reachability."""
-    hindsight = "ok" if await client.ping() else "unreachable"
-    return {"status": "ok", "hindsight": hindsight}
+async def health_hindsight() -> dict[str, Any]:
+    """Full status: engine reachability plus the write (retain) path.
+
+    ``retain`` summarises every bank's newest retain operations (see
+    :meth:`HindsightClient.retain_health`); ``status`` is ``degraded`` when
+    the engine is unreachable or any bank's retains are failing — the
+    async extraction can fail for weeks while ``/remember`` keeps
+    answering 201.
+    """
+    reachable = await client.ping()
+    hindsight = "ok" if reachable else "unreachable"
+    retain = await client.retain_health() if reachable else {"status": "unknown", "banks": {}}
+    degraded = not reachable or retain.get("status") == "failing"
+    return {"status": "degraded" if degraded else "ok", "hindsight": hindsight, "retain": retain}
 
 
 @app.post("/remember", status_code=201)

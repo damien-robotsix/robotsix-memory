@@ -111,6 +111,18 @@ def shrink_recall_query(query: str, error_text: str) -> str:
     return cut.rstrip() or query[:new_len]
 
 
+# Retain health: how many of a bank's newest retain operations are read and
+# how many consecutive failures count as "failing". Hindsight's retain is
+# asynchronous — ``POST /memories`` answers 200 and the fact extraction runs
+# later as a ``retain``/``batch_retain`` operation — so a dead LLM provider
+# leaves ``/remember`` answering 201 while nothing is ever written (every
+# retain failed from 2026-09-24 to 2026-10-21 with "requires more credits",
+# and no health signal existed).
+RETAIN_HEALTH_RECENT_OPS = 10
+RETAIN_HEALTH_FAILING_AFTER = 3
+_RETAIN_TASK_TYPES = frozenset({"retain", "batch_retain"})
+
+
 class HindsightClient:
     """Async HTTP client bound to one Hindsight server."""
 
@@ -172,6 +184,60 @@ class HindsightClient:
         if not resp.content:
             return {}
         return resp.json()
+
+    async def retain_health(self) -> dict[str, Any]:
+        """Summarise the newest retain operations of every bank.
+
+        Returns ``{"status": "ok" | "failing" | "unknown", "banks": {...}}``.
+        A bank is ``failing`` when its newest
+        :data:`RETAIN_HEALTH_RECENT_OPS` retain operations hold at least
+        :data:`RETAIN_HEALTH_FAILING_AFTER` failures and no success; the
+        overall status is ``failing`` when any bank is, and ``unknown`` when
+        the bank list cannot be read. ``last_error`` carries the engine's
+        newest failure message so the cause (provider credits, model, …) is
+        readable from the health endpoint.
+        """
+        try:
+            banks_doc = await self._request("GET", "/v1/default/banks")
+        except HindsightError as exc:
+            return {"status": "unknown", "error": str(exc)[:300], "banks": {}}
+        banks = banks_doc.get("banks", []) if isinstance(banks_doc, dict) else []
+        summary: dict[str, Any] = {"status": "ok", "banks": {}}
+        for bank in banks:
+            bank_id_ = bank.get("bank_id") if isinstance(bank, dict) else None
+            if not bank_id_:
+                continue
+            entry: dict[str, Any] = {
+                "status": "ok",
+                "last_write_at": bank.get("last_write_at"),
+                "failed": 0,
+                "checked": 0,
+            }
+            try:
+                ops_doc = await self._request("GET", f"/v1/default/banks/{bank_id_}/operations")
+            except HindsightError as exc:
+                entry.update(status="unknown", error=str(exc)[:300])
+                summary["banks"][bank_id_] = entry
+                continue
+            ops = ops_doc.get("operations", []) if isinstance(ops_doc, dict) else []
+            recent = [
+                op
+                for op in ops
+                if isinstance(op, dict) and op.get("task_type") in _RETAIN_TASK_TYPES
+            ][:RETAIN_HEALTH_RECENT_OPS]
+            failed = [op for op in recent if op.get("status") == "failed"]
+            succeeded = [op for op in recent if op.get("status") in ("completed", "success")]
+            entry["checked"] = len(recent)
+            entry["failed"] = len(failed)
+            if failed:
+                entry["last_error"] = str(failed[0].get("error_message") or "")[:300]
+                entry["last_failed_at"] = failed[0].get("created_at")
+            if len(failed) >= RETAIN_HEALTH_FAILING_AFTER and not succeeded:
+                entry["status"] = "failing"
+                summary["status"] = "failing"
+                summary.setdefault("last_error", entry["last_error"])
+            summary["banks"][bank_id_] = entry
+        return summary
 
     async def ping(self) -> bool:
         """True when the Hindsight API answers at all."""

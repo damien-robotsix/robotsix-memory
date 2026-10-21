@@ -30,7 +30,7 @@ container only — Docker restarts it while the wrapper keeps answering
 | `GET /recall` | Search an owner's memories (`query`, `owner_id`, `limit`, `tags`, optional `budget` = `low`/`mid`/`high`; default derived from `limit` — `low` for `limit <= 10` — because the engine's rerank cost scales with the candidate budget) |
 | `POST /reflect` | Reasoned answer grounded in the owner's memories |
 | `GET /chat-skill` | Markdown+frontmatter skill document for chat agents |
-| `GET /health` | Standard health check (`{"status": "ok"}`); `GET /health/live` liveness only; `GET /health/hindsight` adds engine reachability |
+| `GET /health` | Standard health check (`{"status": "ok"}`); `GET /health/live` liveness only; `GET /health/hindsight` adds engine reachability and the write-path (`retain`) status — `degraded` when recent retain operations keep failing |
 
 Memories are scoped per `owner_id` (one Hindsight bank per owner):
 `operator`, `periodic:<preset>`, or a component name.

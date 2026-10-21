@@ -16,6 +16,7 @@ import structlog
 
 from robotsix_memory.hindsight_client import (
     RECALL_QUERY_SHRINK_ATTEMPTS,
+    RETAIN_HEALTH_FAILING_AFTER,
     HindsightClient,
     HindsightError,
     bank_id,
@@ -266,3 +267,69 @@ def test_shrink_recall_query_bounds(query: str, detail: str, expect_max: int) ->
     shrunk = shrink_recall_query(query, detail)
     assert 1 <= len(shrunk) <= expect_max
     assert query.startswith(shrunk)
+
+
+def _op(status: str, kind: str = "retain", error: str | None = None) -> dict[str, object]:
+    return {
+        "operation_id": None,
+        "status": status,
+        "task_type": kind,
+        "created_at": "2026-10-21T09:43:21+00:00",
+        "error_message": error,
+    }
+
+
+async def test_retain_health_ok_when_recent_ops_succeed(
+    hs_client: HindsightClient, hindsight_mock: SimpleNamespace
+) -> None:
+    hindsight_mock.routes["operations"].mock(
+        return_value=httpx.Response(
+            200, json={"operations": [_op("completed"), _op("failed", error="x"), _op("completed")]}
+        )
+    )
+    health = await hs_client.retain_health()
+    assert health["status"] == "ok"
+    bank = health["banks"][hindsight_mock.bank]
+    assert bank == {
+        "status": "ok",
+        "last_write_at": "2026-10-21T08:00:00+00:00",
+        "failed": 1,
+        "checked": 3,
+        "last_error": "x",
+        "last_failed_at": "2026-10-21T09:43:21+00:00",
+    }
+
+
+async def test_retain_health_failing_needs_consecutive_failures_and_no_success(
+    hs_client: HindsightClient, hindsight_mock: SimpleNamespace
+) -> None:
+    ops = [_op("failed", "batch_retain", "requires more credits")] * RETAIN_HEALTH_FAILING_AFTER
+    # a non-retain task type must not count
+    ops.append(_op("completed", "consolidation"))
+    hindsight_mock.routes["operations"].mock(
+        return_value=httpx.Response(200, json={"operations": ops})
+    )
+    health = await hs_client.retain_health()
+    assert health["status"] == "failing"
+    assert health["last_error"] == "requires more credits"
+    assert health["banks"][hindsight_mock.bank]["checked"] == RETAIN_HEALTH_FAILING_AFTER
+
+
+async def test_retain_health_unknown_when_bank_list_fails(
+    hs_client: HindsightClient, hindsight_mock: SimpleNamespace
+) -> None:
+    hindsight_mock.routes["banks"].mock(return_value=httpx.Response(500, json={"detail": "boom"}))
+    health = await hs_client.retain_health()
+    assert health["status"] == "unknown"
+    assert health["banks"] == {}
+
+
+async def test_retain_health_marks_bank_unknown_when_operations_fail(
+    hs_client: HindsightClient, hindsight_mock: SimpleNamespace
+) -> None:
+    hindsight_mock.routes["operations"].mock(
+        return_value=httpx.Response(500, json={"detail": "boom"})
+    )
+    health = await hs_client.retain_health()
+    assert health["status"] == "ok"
+    assert health["banks"][hindsight_mock.bank]["status"] == "unknown"

@@ -44,6 +44,8 @@ RETAIN_PATH = f"{HS}/v1/default/banks/{OPERATOR_BANK}/memories"
 RECALL_PATH = f"{HS}/v1/default/banks/{OPERATOR_BANK}/memories/recall"
 REFLECT_PATH = f"{HS}/v1/default/banks/{OPERATOR_BANK}/reflect"
 PING_PATH = f"{HS}/"
+BANKS_PATH = f"{HS}/v1/default/banks"
+OPERATIONS_PATH = f"{HS}/v1/default/banks/{OPERATOR_BANK}/operations"
 
 
 @pytest.fixture
@@ -75,6 +77,19 @@ def hindsight_mock() -> Iterator[SimpleNamespace]:
             ),
             "ping": router.get(PING_PATH).mock(
                 return_value=httpx.Response(200, json={"name": "hindsight"})
+            ),
+            "banks": router.get(BANKS_PATH).mock(
+                return_value=httpx.Response(
+                    200,
+                    json={
+                        "banks": [
+                            {"bank_id": OPERATOR_BANK, "last_write_at": "2026-10-21T08:00:00+00:00"}
+                        ]
+                    },
+                )
+            ),
+            "operations": router.get(OPERATIONS_PATH).mock(
+                return_value=httpx.Response(200, json={"operations": []})
             ),
         }
         yield SimpleNamespace(router=router, routes=routes, bank=OPERATOR_BANK)
