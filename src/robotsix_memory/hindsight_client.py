@@ -49,6 +49,16 @@ def bank_id(prefix: str, owner_id: str) -> str:
 # while chat sliced the answer to 8 results and timed out at 20 s. Size the
 # engine's work to what the caller will actually keep.
 RECALL_BUDGET_LOW_MAX_LIMIT = 10  # chat's per-turn recall asks for <= 8
+
+# Hindsight rejects recall queries above a token ceiling with
+# ``400 {"detail": "Query too long: N tokens exceeds maximum of M …"}``.
+# Callers hand us whatever a chat turn starts with (on 2026-10-21 chat's
+# decision-panel prompts were ~2000 chars of ticket ids = 750+ tokens) and
+# every rejection counted as a backend failure on their side, so shrink the
+# query by the engine's own ratio and retry instead of surfacing the 400.
+RECALL_QUERY_TOO_LONG_MARKER = "Query too long"
+RECALL_QUERY_SHRINK_ATTEMPTS = 4
+_TOO_LONG_RE = re.compile(r"(\d+) tokens exceeds maximum of (\d+)")
 RECALL_BUDGET_MID_MAX_LIMIT = 50
 RECALL_TOKENS_PER_RESULT = 160  # one rendered memory ~ 160 tokens (observed)
 RECALL_MIN_MAX_TOKENS = 512
@@ -75,6 +85,30 @@ def recall_max_tokens_for(limit: int) -> int:
     return min(
         RECALL_ENGINE_MAX_TOKENS, max(RECALL_MIN_MAX_TOKENS, limit * RECALL_TOKENS_PER_RESULT)
     )
+
+
+def shrink_recall_query(query: str, error_text: str) -> str:
+    """Return *query* cut to fit the engine's token ceiling named in *error_text*.
+
+    Uses the ``N tokens exceeds maximum of M`` ratio from the engine's 400
+    detail (with 10 % headroom, since the cut text may tokenise differently)
+    and falls back to halving when the detail is unparseable. The cut lands
+    on the last whitespace before the limit so no word is split.
+    """
+    match = _TOO_LONG_RE.search(error_text)
+    if match and int(match.group(1)) > 0:
+        tokens, limit = int(match.group(1)), int(match.group(2))
+        new_len = int(len(query) * (limit * 0.9) / tokens)
+    else:
+        new_len = len(query) // 2
+    new_len = min(new_len, len(query) - 1)
+    if new_len < 1:
+        return query[:1]
+    cut = query[:new_len]
+    space = cut.rfind(" ")
+    if space > new_len // 2:
+        cut = cut[:space]
+    return cut.rstrip() or query[:new_len]
 
 
 class HindsightClient:
@@ -256,9 +290,28 @@ class HindsightClient:
         }
         if tags:
             body["tags"] = tags
-        result = await self._request(
-            "POST", f"/v1/default/banks/{bank}/memories/recall", json_body=body
-        )
+        path = f"/v1/default/banks/{bank}/memories/recall"
+        for attempt in range(RECALL_QUERY_SHRINK_ATTEMPTS + 1):
+            try:
+                result = await self._request("POST", path, json_body=body)
+                break
+            except HindsightError as exc:
+                too_long = (
+                    exc.status_code == 400
+                    and RECALL_QUERY_TOO_LONG_MARKER in str(exc)
+                    and attempt < RECALL_QUERY_SHRINK_ATTEMPTS
+                    and len(body["query"]) > 1
+                )
+                if not too_long:
+                    raise
+                shrunk = shrink_recall_query(body["query"], str(exc))
+                logger.warning(
+                    "hindsight.recall.query_shrunk",
+                    attempt=attempt + 1,
+                    from_chars=len(body["query"]),
+                    to_chars=len(shrunk),
+                )
+                body["query"] = shrunk
         # The engine budgets by tokens, not count — the sizing above only
         # bounds its work; apply the caller's limit to the ranked results so
         # the wrapper contract (at most ``limit`` results) stays guaranteed.
