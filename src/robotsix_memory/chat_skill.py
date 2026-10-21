@@ -36,7 +36,12 @@ repeats merge instead of piling up.
 
 - Port 8080.
 - Health: `GET /health` -> `{{"status": "ok"}}`; `GET /health/hindsight` adds
-  engine reachability -> `{{"status": "ok", "hindsight": "ok"}}`.
+  engine reachability and the write path -> `{{"status": "ok", "hindsight":
+  "ok", "retain": {{"status": "ok", "banks": {{...}}}}}}`. `status` is
+  `degraded` when the engine is unreachable or a bank's recent retain
+  operations keep failing (`retain.last_error` names the cause — e.g. the
+  extraction LLM provider rejecting requests); `/remember` still answers 201
+  then, so this is the only place a dead write path shows.
 
 ## Auth
 

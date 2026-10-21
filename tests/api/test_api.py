@@ -50,12 +50,55 @@ def test_health_reports_hindsight_down(hindsight_mock: SimpleNamespace) -> None:
     hindsight_mock.routes["ping"].mock(side_effect=httpx.ConnectError("refused"))
     resp = client.get("/health/hindsight")
     assert resp.status_code == 200
-    assert resp.json() == {"status": "ok", "hindsight": "unreachable"}
+    body = resp.json()
+    assert body["status"] == "degraded"
+    assert body["hindsight"] == "unreachable"
+    assert body["retain"] == {"status": "unknown", "banks": {}}
 
 
 def test_health_reports_hindsight_ok(hindsight_mock: SimpleNamespace) -> None:
     resp = client.get("/health/hindsight")
-    assert resp.json() == {"status": "ok", "hindsight": "ok"}
+    body = resp.json()
+    assert body["status"] == "ok"
+    assert body["hindsight"] == "ok"
+    assert body["retain"]["status"] == "ok"
+    assert body["retain"]["banks"][hindsight_mock.bank]["checked"] == 0
+
+
+def test_health_reports_retain_failing(hindsight_mock: SimpleNamespace) -> None:
+    """The write path can fail for weeks while /remember answers 201.
+
+    Mirrors the live 2026-10-21 shape: every ``retain``/``batch_retain``
+    operation failed with the provider's credit error since 2026-09-24.
+    """
+    err = (
+        "RuntimeError: Fact extraction failed: 1/1 chunks failed. First failures: "
+        "chunk 0: ProviderResponseError: This request requires more credits, or fewer "
+        "max_tokens."
+    )
+    ops = [
+        {
+            "operation_id": None,
+            "status": "failed",
+            "task_type": kind,
+            "created_at": f"2026-10-21T0{i}:43:21.906447+00:00",
+            "error_message": err,
+        }
+        for i, kind in enumerate(("retain", "batch_retain", "retain", "batch_retain"))
+    ]
+    hindsight_mock.routes["operations"].mock(
+        return_value=httpx.Response(200, json={"operations": ops})
+    )
+    resp = client.get("/health/hindsight")
+    body = resp.json()
+    assert body["status"] == "degraded"
+    assert body["hindsight"] == "ok"
+    assert body["retain"]["status"] == "failing"
+    assert "requires more credits" in body["retain"]["last_error"]
+    bank = body["retain"]["banks"][hindsight_mock.bank]
+    assert bank["failed"] == 4
+    assert bank["checked"] == 4
+    assert bank["last_write_at"] == "2026-10-21T08:00:00+00:00"
 
 
 def test_unhandled_exception_returns_500_envelope(
