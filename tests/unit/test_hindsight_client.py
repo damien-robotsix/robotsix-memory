@@ -15,11 +15,13 @@ import pytest
 import structlog
 
 from robotsix_memory.hindsight_client import (
+    RECALL_QUERY_SHRINK_ATTEMPTS,
     HindsightClient,
     HindsightError,
     bank_id,
     recall_budget_for,
     recall_max_tokens_for,
+    shrink_recall_query,
 )
 
 
@@ -195,3 +197,72 @@ async def test_request_logs_error_status(
     errors = [entry for entry in logs if entry["event"] == "hindsight.request.error"]
     assert errors
     assert errors[0]["status_code"] == 503
+
+
+_TOO_LONG_DETAIL = {
+    "detail": "Query too long: 751 tokens exceeds maximum of 500. Please shorten your query."
+}
+
+
+async def test_recall_shrinks_query_on_too_long_400_and_retries(
+    hs_client: HindsightClient, hindsight_mock: SimpleNamespace
+) -> None:
+    """A 400 'Query too long' shrinks the query by the engine's ratio and retries.
+
+    Mirrors the live 2026-10-21 shape: chat sent a ~2000-char decision-panel
+    prompt, hindsight 0.9.2 answered ``400 {"detail": "Query too long: 751
+    tokens exceeds maximum of 500 …"}`` and the wrapper surfaced it.
+    """
+    query = " ".join(f"20261006T163511Z-ticket-{i:04d}" for i in range(80))
+    hindsight_mock.routes["recall"].mock(
+        side_effect=[
+            httpx.Response(400, json=_TOO_LONG_DETAIL),
+            httpx.Response(200, json={"results": [{"id": "m1", "text": "fact"}]}),
+        ]
+    )
+    result = await hs_client.recall(hindsight_mock.bank, query, limit=8)
+    assert result["results"] == [{"id": "m1", "text": "fact"}]
+    assert hindsight_mock.routes["recall"].call_count == 2
+    first = json.loads(hindsight_mock.routes["recall"].calls[0].request.content)["query"]
+    second = json.loads(hindsight_mock.routes["recall"].calls[1].request.content)["query"]
+    assert first == query
+    assert 0 < len(second) < len(first)
+    # 500 * 0.9 / 751 of the original, cut on a word boundary
+    assert len(second) <= int(len(query) * 450 / 751)
+    assert query.startswith(second)
+    assert not second.endswith("-")
+
+
+async def test_recall_gives_up_after_shrink_attempts(
+    hs_client: HindsightClient, hindsight_mock: SimpleNamespace
+) -> None:
+    hindsight_mock.routes["recall"].mock(return_value=httpx.Response(400, json=_TOO_LONG_DETAIL))
+    with pytest.raises(HindsightError) as excinfo:
+        await hs_client.recall(hindsight_mock.bank, "word " * 400, limit=8)
+    assert excinfo.value.status_code == 400
+    assert hindsight_mock.routes["recall"].call_count == RECALL_QUERY_SHRINK_ATTEMPTS + 1
+
+
+async def test_recall_other_400_is_not_retried(
+    hs_client: HindsightClient, hindsight_mock: SimpleNamespace
+) -> None:
+    hindsight_mock.routes["recall"].mock(
+        return_value=httpx.Response(400, json={"detail": "budget must be one of low/mid/high"})
+    )
+    with pytest.raises(HindsightError):
+        await hs_client.recall(hindsight_mock.bank, "preferences", limit=8)
+    assert hindsight_mock.routes["recall"].call_count == 1
+
+
+@pytest.mark.parametrize(
+    ("query", "detail", "expect_max"),
+    [
+        ("a" * 1000, "Query too long: 1000 tokens exceeds maximum of 500.", 450),
+        ("word " * 200, "unparseable detail", 500),
+        ("ab", "Query too long: 2 tokens exceeds maximum of 1.", 1),
+    ],
+)
+def test_shrink_recall_query_bounds(query: str, detail: str, expect_max: int) -> None:
+    shrunk = shrink_recall_query(query, detail)
+    assert 1 <= len(shrunk) <= expect_max
+    assert query.startswith(shrunk)
