@@ -6,14 +6,15 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions: {}
 
 jobs:
   tests:
     name: Python CI
-    permissions:
-      contents: read
-      security-events: write # SARIF upload from the reusable workflow
     uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-ci.yml@188518bece972d7d5f1c4e2a0f2226d2526dc0fa # main
     with:
       python-version: "3.14"
@@ -22,6 +23,19 @@ jobs:
       cov-package: src/robotsix_memory
       install-extras: ""
       mypy-advisory: false
+    permissions:
+      contents: read
+      security-events: write # SARIF upload from the reusable workflow
+
+  lint-workflows:
+    name: Lint workflows
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/lint-workflows.yml@188518bece972d7d5f1c4e2a0f2226d2526dc0fa # main
+    with:
+      run-actionlint: true
+      run-zizmor: true
+    permissions:
+      contents: read
+      security-events: write # SARIF upload from the reusable workflow
 
   lockfile-security:
     name: uv audit + lockfile freshness
@@ -32,6 +46,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install uv
         uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
