@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.0](https://github.com/damien-robotsix/robotsix-memory/compare/v0.4.0...v0.5.0) (2026-10-21)
+
+
+### Features
+
+* **health:** report the retain (write) path on /health/hindsight ([#85](https://github.com/damien-robotsix/robotsix-memory/issues/85)) ([318a2a5](https://github.com/damien-robotsix/robotsix-memory/commit/318a2a557561ec85b48d0cf5347d05388f5c2c45))
+
+
+### Bug Fixes
+
+* **docker:** strip the base image pip whose vendored certifi fails the Trivy gate ([#83](https://github.com/damien-robotsix/robotsix-memory/issues/83)) ([b03c54c](https://github.com/damien-robotsix/robotsix-memory/commit/b03c54cc0e9910fbfc9e332ec4ccdce9716094be))
+* shrink and retry recall queries hindsight rejects as too long ([#82](https://github.com/damien-robotsix/robotsix-memory/issues/82)) ([8423202](https://github.com/damien-robotsix/robotsix-memory/commit/842320278d24ce576496e114c939637880ba2332))
+
 ## [0.4.0](https://github.com/damien-robotsix/robotsix-memory/compare/v0.3.2...v0.4.0) (2026-10-16)
 
 
