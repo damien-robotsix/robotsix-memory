@@ -45,7 +45,7 @@ Pre-registers the default Hindsight routes with respx using the
 place. It yields a `SimpleNamespace` with:
 
 - `routes` — a `dict` mapping short names to respx routes:
-  `"retain"`, `"recall"`, `"reflect"`, `"ping"`, `"banks"`, `"operations"`. Each is pre-mocked with
+  `"retain"`, `"recall"`, `"reflect"`, `"ping"`, `"banks"`, `"operations"`, `"retry"` (`POST …/operations/{id}/retry`). Each is pre-mocked with
   a sensible success `return_value`.
 - `bank` — the operator bank id the routes are registered against.
 - `router` — the underlying respx router.

@@ -42,6 +42,8 @@ repeats merge instead of piling up.
   operations keep failing (`retain.last_error` names the cause — e.g. the
   extraction LLM provider rejecting requests); `/remember` still answers 201
   then, so this is the only place a dead write path shows.
+  `retain.replay` -> `{{"queued": N, "last_at": ...}}` reports the automatic
+  replay of failed retains (see `POST /admin/replay-failed-retains`).
 
 ## Auth
 
@@ -104,4 +106,14 @@ Reason over an owner's memories.
 
 Returns a synthesized answer grounded in the owner's memories (slower than
 `/recall`; use for judgment questions, not lookups).
+
+### POST /admin/replay-failed-retains
+
+Re-queue the failed write backlog after the extraction provider recovers
+(internal network only; no body). The engine gives up on a failed retain after
+three retries; the wrapper already replays the backlog automatically every 15
+minutes once a retain succeeds again, so call this only to force it right now.
+Retries the newest failed `batch_retain` per `document_id` in every bank,
+rate-limited, never the same operation twice per recovery. Returns
+`{{"queued": N, "replay": {{"queued": total, "last_at": ...}}}}` (202).
 """

@@ -31,6 +31,10 @@ class Settings(ConfigModel):
     bank_prefix: str = "fleet"
     log_level: str = "INFO"
     metrics_port: int = 8001
+    # Failed-retain replay loop (see robotsix_memory.retain_replay): seconds
+    # between ticks (<= 0 disables the loop) and max retry POSTs per minute.
+    retain_replay_interval: float = 900.0
+    retain_replay_per_minute: int = 30
 
 
 def load_settings() -> Settings:

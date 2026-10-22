@@ -26,7 +26,7 @@ from respx.router import AllMockedAssertionError
 
 from robotsix_memory.hindsight_client import HindsightClient
 
-ROUTE_NAMES = ("retain", "recall", "reflect", "ping", "banks", "operations")
+ROUTE_NAMES = ("retain", "recall", "reflect", "ping", "banks", "operations", "retry")
 
 
 # --------------------------------------------------------------------------- #
