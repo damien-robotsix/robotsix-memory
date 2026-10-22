@@ -19,6 +19,9 @@ jobs:
       cov-package: src/robotsix_memory
       install-extras: ""
       mypy-advisory: false
+    permissions:
+      contents: read
+      security-events: write # SARIF upload from the reusable workflow
 
   lint-workflows:
     name: Lint workflows
