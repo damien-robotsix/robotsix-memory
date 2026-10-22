@@ -11,14 +11,6 @@ permissions: {}
 jobs:
   tests:
     name: Python CI
-  lint-workflows:
-    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/lint-workflows.yml@<same pinned sha as python-ci>
-    with:
-      run-actionlint: true
-      run-zizmor: true
-    permissions:
-      contents: read
-      security-events: write # SARIF upload from the reusable workflow
     uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-ci.yml@188518bece972d7d5f1c4e2a0f2226d2526dc0fa # main
     with:
       python-version: "3.14"
@@ -27,6 +19,16 @@ jobs:
       cov-package: src/robotsix_memory
       install-extras: ""
       mypy-advisory: false
+
+  lint-workflows:
+    name: Lint workflows
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/lint-workflows.yml@188518bece972d7d5f1c4e2a0f2226d2526dc0fa # main
+    with:
+      run-actionlint: true
+      run-zizmor: true
+    permissions:
+      contents: read
+      security-events: write # SARIF upload from the reusable workflow
 
   lockfile-security:
     name: uv audit + lockfile freshness
