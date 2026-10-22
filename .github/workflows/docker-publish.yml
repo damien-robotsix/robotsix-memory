@@ -5,13 +5,14 @@ on:
     branches: [main]
     tags: ["*.*.*"]
 
+permissions: {} # no workflow-level default; the job grants its own
+
 jobs:
   docker-release:
     uses: damien-robotsix/robotsix-github-workflows/.github/workflows/docker-release.yml@c4caf23ade98668434145f5b1abd3bc42cec63e7
     permissions:
       contents: read
-      packages: write
-      id-token: write
-      attestations: write
-      security-events: write
-    secrets: inherit
+      packages: write # push images to ghcr.io
+      id-token: write # provenance/SBOM attestation signing
+      attestations: write # provenance/SBOM attestation signing
+      security-events: write # upload the Trivy SARIF to code scanning
