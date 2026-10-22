@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 import time
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 from robotsix_http import ExternalHTTPError, RetryClient
@@ -238,6 +239,20 @@ class HindsightClient:
                 summary.setdefault("last_error", entry["last_error"])
             summary["banks"][bank_id_] = entry
         return summary
+
+    async def list_operations(self, bank: str) -> list[dict[str, Any]]:
+        """Return the bank's operations (``GET /banks/{bank}/operations``)."""
+        doc = await self._request("GET", f"/v1/default/banks/{quote(bank, safe='')}/operations")
+        ops = doc.get("operations", []) if isinstance(doc, dict) else []
+        return [op for op in ops if isinstance(op, dict)]
+
+    async def retry_operation(self, bank: str, operation_id: str) -> Any:
+        """Re-queue a failed operation (``POST /banks/{bank}/operations/{id}/retry``)."""
+        path = (
+            f"/v1/default/banks/{quote(bank, safe='')}"
+            f"/operations/{quote(operation_id, safe='')}/retry"
+        )
+        return await self._request("POST", path)
 
     async def ping(self) -> bool:
         """True when the Hindsight API answers at all."""

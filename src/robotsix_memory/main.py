@@ -8,6 +8,8 @@ API and the chat skill; the engine stays swappable.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -16,7 +18,7 @@ from importlib.metadata import version as _dist_version
 from typing import Annotated, Any, Literal
 
 import structlog
-from fastapi import FastAPI, Query
+from fastapi import BackgroundTasks, FastAPI, Query
 from prometheus_client import start_http_server
 from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel, Field
@@ -38,6 +40,7 @@ from robotsix_memory.hindsight_client import (
     bank_id,
 )
 from robotsix_memory.logging_config import configure_logging, get_logger
+from robotsix_memory.retain_replay import RetainReplayer
 
 logger = get_logger("robotsix_memory")
 
@@ -77,7 +80,14 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         start_http_server(settings.metrics_port)
         logger.info("metrics_server_started", port=settings.metrics_port)
     logger.info("startup", version=_package_version(), hindsight_url=settings.hindsight_url)
+    replay_task: asyncio.Task[None] | None = None
+    if settings.retain_replay_interval > 0:
+        replay_task = asyncio.create_task(replayer.run_forever())
     yield
+    if replay_task is not None:
+        replay_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await replay_task
     logger.info("shutdown")
 
 
@@ -123,6 +133,15 @@ client = HindsightClient(
     settings.hindsight_url,
     timeout=settings.request_timeout,
     retain_timeout=settings.retain_timeout,
+)
+
+# Background replay of failed retain operations once the write path recovers
+# (started from the lifespan; also triggerable via POST
+# /admin/replay-failed-retains).
+replayer = RetainReplayer(
+    client,
+    interval=settings.retain_replay_interval,
+    per_minute=settings.retain_replay_per_minute,
 )
 
 
@@ -187,7 +206,25 @@ async def health_hindsight() -> dict[str, Any]:
     hindsight = "ok" if reachable else "unreachable"
     retain = await client.retain_health() if reachable else {"status": "unknown", "banks": {}}
     degraded = not reachable or retain.get("status") == "failing"
+    retain["replay"] = replayer.state()
     return {"status": "degraded" if degraded else "ok", "hindsight": hindsight, "retain": retain}
+
+
+@app.post("/admin/replay-failed-retains", status_code=202)
+async def replay_failed_retains(background_tasks: BackgroundTasks) -> dict[str, Any]:
+    """Queue retries of every bank's failed retain backlog on demand.
+
+    The wrapper has no API key, so this route relies on the internal
+    network (the deploy edge does not expose it). Unlike the background
+    loop it skips the write-path probe — the caller asserts the provider is
+    back. Only the newest failed ``batch_retain`` per ``document_id`` is
+    retried, and ids already queued in this recovery are skipped. The
+    retry POSTs are sent rate-limited after the response.
+    """
+    planned = await replayer.plan(force=True)
+    if planned:
+        background_tasks.add_task(replayer.send, planned)
+    return {"queued": len(planned), "replay": replayer.state()}
 
 
 @app.post("/remember", status_code=201)

@@ -30,10 +30,33 @@ container only — Docker restarts it while the wrapper keeps answering
 | `GET /recall` | Search an owner's memories (`query`, `owner_id`, `limit`, `tags`, optional `budget` = `low`/`mid`/`high`; default derived from `limit` — `low` for `limit <= 10` — because the engine's rerank cost scales with the candidate budget) |
 | `POST /reflect` | Reasoned answer grounded in the owner's memories |
 | `GET /chat-skill` | Markdown+frontmatter skill document for chat agents |
-| `GET /health` | Standard health check (`{"status": "ok"}`); `GET /health/live` liveness only; `GET /health/hindsight` adds engine reachability and the write-path (`retain`) status — `degraded` when recent retain operations keep failing |
+| `GET /health` | Standard health check (`{"status": "ok"}`); `GET /health/live` liveness only; `GET /health/hindsight` adds engine reachability and the write-path (`retain`) status — `degraded` when recent retain operations keep failing; `retain.replay` reports the failed-retain replay counters (`queued`, `last_at`) |
+| `POST /admin/replay-failed-retains` | Queue retries of the failed retain backlog now (internal network only; the wrapper has no API key) — see [Failed-retain replay](#failed-retain-replay) |
 
 Memories are scoped per `owner_id` (one Hindsight bank per owner):
 `operator`, `periodic:<preset>`, or a component name.
+
+## Failed-retain replay
+
+Hindsight retains asynchronously and retries a failed `retain`/`batch_retain`
+operation only three times, one minute apart; after that it stays `failed`.
+To recover a backlog after an extraction-provider outage, the wrapper runs a
+background loop every `retain_replay_interval` seconds (default `900`; `<= 0`
+disables it) that:
+
+1. marks banks whose retains are `failing` (per `/health/hindsight`) for replay;
+2. waits until the write path is proven healthy again — the newest retain
+   operation of some bank completed;
+3. lists each such bank's failed `batch_retain` operations, keeps only the
+   newest per `document_id` (document pushes use `update_mode=replace`) and
+   calls `POST /v1/default/banks/{bank}/operations/{id}/retry` for each, at
+   most `retain_replay_per_minute` per minute (default `30`), logging
+   `retain.replay queued=N bank=…`.
+
+An operation is retried at most once per recovery. `POST
+/admin/replay-failed-retains` triggers the same replay immediately (skipping
+the probe). Counters appear on `/health/hindsight` as
+`retain.replay: {"queued": N, "last_at": …}`.
 
 ## Configuration
 

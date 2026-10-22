@@ -11,6 +11,7 @@ Fixture shapes mirror the live Hindsight 0.9.2 REST API (retain = POST
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from types import SimpleNamespace
 
@@ -90,6 +91,9 @@ def hindsight_mock() -> Iterator[SimpleNamespace]:
             ),
             "operations": router.get(OPERATIONS_PATH).mock(
                 return_value=httpx.Response(200, json={"operations": []})
+            ),
+            "retry": router.post(url__regex=rf"^{re.escape(OPERATIONS_PATH)}/[^/]+/retry$").mock(
+                return_value=httpx.Response(200, json={"success": True})
             ),
         }
         yield SimpleNamespace(router=router, routes=routes, bank=OPERATOR_BANK)

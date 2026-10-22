@@ -31,6 +31,16 @@
       "title": "Request Timeout",
       "type": "number"
     },
+    "retain_replay_interval": {
+      "default": 900.0,
+      "title": "Retain Replay Interval",
+      "type": "number"
+    },
+    "retain_replay_per_minute": {
+      "default": 30,
+      "title": "Retain Replay Per Minute",
+      "type": "integer"
+    },
     "retain_timeout": {
       "default": 120.0,
       "title": "Retain Timeout",

@@ -23,14 +23,20 @@ from robotsix_http.fastapi import (
     parse_chat_skill_frontmatter,
 )
 
+from robotsix_memory import main as main_module
 from robotsix_memory.chat_skill import chat_skill
 from robotsix_memory.hindsight_client import (
     RECALL_BUDGET_LOW_MAX_LIMIT,
     RECALL_BUDGET_MID_MAX_LIMIT,
 )
 from robotsix_memory.main import ReflectRequest, RememberRequest, app, settings
+from robotsix_memory.retain_replay import RetainReplayer
 
 client = TestClient(app)
+
+
+async def _no_sleep(_seconds: float) -> None:
+    return None
 
 
 def test_health_live() -> None:
@@ -53,7 +59,9 @@ def test_health_reports_hindsight_down(hindsight_mock: SimpleNamespace) -> None:
     body = resp.json()
     assert body["status"] == "degraded"
     assert body["hindsight"] == "unreachable"
-    assert body["retain"] == {"status": "unknown", "banks": {}}
+    assert body["retain"]["status"] == "unknown"
+    assert body["retain"]["banks"] == {}
+    assert set(body["retain"]["replay"]) >= {"queued", "last_at"}
 
 
 def test_health_reports_hindsight_ok(hindsight_mock: SimpleNamespace) -> None:
@@ -99,6 +107,49 @@ def test_health_reports_retain_failing(hindsight_mock: SimpleNamespace) -> None:
     assert bank["failed"] == 4
     assert bank["checked"] == 4
     assert bank["last_write_at"] == "2026-10-21T08:00:00+00:00"
+
+
+def test_admin_replay_failed_retains_and_health_counters(
+    hindsight_mock: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """On-demand replay retries the newest failed batch_retain per document."""
+    monkeypatch.setattr(
+        "robotsix_memory.main.replayer",
+        RetainReplayer(main_module.client, interval=900.0, per_minute=600, sleep=_no_sleep),
+    )
+    ops = [
+        {
+            "id": op_id,
+            "document_id": doc,
+            "task_type": "batch_retain",
+            "status": "failed",
+            "created_at": created,
+            "retry_count": 3,
+        }
+        for op_id, doc, created in (
+            ("op-a1", "doc-a", "2026-10-01T08:00:00+00:00"),
+            ("op-b1", "doc-b", "2026-10-02T08:00:00+00:00"),
+            ("op-a2", "doc-a", "2026-10-03T08:00:00+00:00"),
+        )
+    ]
+    hindsight_mock.routes["operations"].mock(
+        return_value=httpx.Response(200, json={"operations": ops})
+    )
+
+    resp = client.post("/admin/replay-failed-retains")
+    assert resp.status_code == 202
+    assert resp.json()["queued"] == 2
+    retried = sorted(
+        call.request.url.path.split("/")[-2] for call in hindsight_mock.routes["retry"].calls
+    )
+    assert retried == ["op-a2", "op-b1"]
+
+    # A second trigger in the same recovery queues nothing new.
+    assert client.post("/admin/replay-failed-retains").json()["queued"] == 0
+
+    replay = client.get("/health/hindsight").json()["retain"]["replay"]
+    assert replay["queued"] == 2
+    assert replay["last_at"] is not None
 
 
 def test_unhandled_exception_returns_500_envelope(
