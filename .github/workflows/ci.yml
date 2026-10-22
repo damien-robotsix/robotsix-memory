@@ -11,6 +11,11 @@ permissions: {}
 jobs:
   tests:
     name: Python CI
+  lint-workflows:
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/lint-workflows.yml@<same pinned sha as python-ci>
+    with:
+      run-actionlint: true
+      run-zizmor: true
     permissions:
       contents: read
       security-events: write # SARIF upload from the reusable workflow
