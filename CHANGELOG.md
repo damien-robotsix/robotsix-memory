@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/damien-robotsix/robotsix-memory/compare/v0.5.0...v0.6.0) (2026-10-22)
+
+
+### Features
+
+* Replay failed retain operations automatically once the extraction provider recovers (20261022T095728Z-replay-failed-retain-operations-automati-2135) ([#92](https://github.com/damien-robotsix/robotsix-memory/issues/92)) ([998096c](https://github.com/damien-robotsix/robotsix-memory/commit/998096c09945b578815fdcff00ce9ec5b8e45c72))
+
 ## [0.5.0](https://github.com/damien-robotsix/robotsix-memory/compare/v0.4.0...v0.5.0) (2026-10-21)
 
 
