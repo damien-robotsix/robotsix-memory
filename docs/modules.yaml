@@ -1,0 +1,107 @@
+# Module taxonomy for robotsix-memory.
+# Validate with:  robotsix-modules validate docs/modules.yaml
+#                 robotsix-modules check-registration docs/modules.yaml --root .
+#                 robotsix-modules validate-paths docs/modules.yaml --root .
+package: robotsix_memory
+
+modules:
+  - id: api
+    description: >-
+      FastAPI application and service entrypoint — the stable memory HTTP
+      API (retain / recall / reflect), Prometheus metrics, request
+      middleware, and app lifespan wiring of the Hindsight client and the
+      retain-replay worker.
+    paths:
+      - src/robotsix_memory/__init__.py
+      - src/robotsix_memory/main.py
+      - tests/api/test_api.py
+      - tests/unit/test_metrics.py
+      - tests/unit/test_middleware.py
+    dependencies:
+      - chat-skill
+      - config
+      - hindsight-client
+      - logging
+      - retain-replay
+
+  - id: hindsight-client
+    description: >-
+      Typed async HTTP client for the upstream Hindsight memory bank,
+      including its error types.
+    paths:
+      - src/robotsix_memory/hindsight_client.py
+      - tests/unit/test_hindsight_client.py
+    dependencies:
+      - logging
+
+  - id: retain-replay
+    description: >-
+      Durable queue that replays failed retain operations once the
+      extraction provider recovers.
+    paths:
+      - src/robotsix_memory/retain_replay.py
+      - tests/unit/test_retain_replay.py
+    dependencies:
+      - hindsight-client
+      - logging
+
+  - id: chat-skill
+    description: >-
+      robotsix-chat skill descriptor exposing the memory API to the chat
+      agent.
+    paths:
+      - src/robotsix_memory/chat_skill.py
+    dependencies:
+      - hindsight-client
+
+  - id: config
+    description: >-
+      Pydantic settings loaded via robotsix-config, the committed config
+      file and its generated JSON Schema, and the schema generator.
+    paths:
+      - src/robotsix_memory/config.py
+      - src/robotsix_memory/gen_schema.py
+      - config/config.json
+      - config/config.schema.json
+      - tests/test_config.py
+      - tests/test_config_schema.py
+      - tests/test_gen_schema.py
+
+  - id: logging
+    description: >-
+      Structured logging (structlog) configuration and logger factory.
+    paths:
+      - src/robotsix_memory/logging_config.py
+      - tests/unit/test_logging_config.py
+
+  - id: test-support
+    description: >-
+      Shared pytest fixtures and the fixture-consolidation guard that keeps
+      them in one place.
+    paths:
+      - tests/FIXTURES.md
+      - tests/conftest.py
+      - tests/unit/conftest.py
+      - tests/unit/test_fixture_consolidation.py
+
+  - id: root
+    description: >-
+      Repository-level packaging, release, container and deployment files,
+      mill periodic-agent configuration, and project docs not owned by a
+      single code module.
+    paths:
+      - .dockerignore
+      - .gitignore
+      - .release-please-manifest.json
+      - .robotsix-mill/**
+      - CHANGELOG.md
+      - Dockerfile
+      - LICENSE
+      - README.md
+      - SECURITY.md
+      - deploy/docker-compose.yml
+      - docs/modules.yaml
+      - pyproject.toml
+      - release-please-config.json
+      - tests/unit/test_deploy_manifest.py
+      - uv.lock
