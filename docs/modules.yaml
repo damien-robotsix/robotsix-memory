@@ -101,6 +101,7 @@ modules:
       - SECURITY.md
       - deploy/docker-compose.yml
       - docs/modules.yaml
+      - docs/upgrades/**
       - pyproject.toml
       - release-please-config.json
       - tests/unit/test_deploy_manifest.py
