@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.1](https://github.com/damien-robotsix/robotsix-memory/compare/v0.6.0...v0.6.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* CI failure: CI on main (20261023T160615Z-ci-failure-ci-on-main-0c30) ([#102](https://github.com/damien-robotsix/robotsix-memory/issues/102)) ([b901a24](https://github.com/damien-robotsix/robotsix-memory/commit/b901a243c6f58c819f831c80bee85c414721b89a))
+
+
+### Documentation
+
+* Evaluate & migrate vectorize-io/hindsight 0.10.2 → 1.1.0 (memory deploy, schema-drift risk) (20261022T113905Z-evaluate-migrate-vectorize-io-hindsight-b084) ([#99](https://github.com/damien-robotsix/robotsix-memory/issues/99)) ([150d6a8](https://github.com/damien-robotsix/robotsix-memory/commit/150d6a83565d1f00139b02185cdc4571d079d6df))
+
 ## [0.6.0](https://github.com/damien-robotsix/robotsix-memory/compare/v0.5.0...v0.6.0) (2026-10-22)
 
 
