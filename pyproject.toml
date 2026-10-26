@@ -39,14 +39,14 @@ required-version = ">=0.12.5"
 # memory's newer robotsix-http rev, which satisfies llmio's ">= 0.3.2" floor, so
 # the conflicting transitive git URLs collapse onto one rev.
 override-dependencies = [
-    "robotsix-http @ git+https://github.com/damien-robotsix/robotsix-http.git@2fc08979da9a443bd28889aae14d55838b53d4ee",
+    "robotsix-http @ git+https://github.com/damien-robotsix/robotsix-http.git@726254c4e24e56b409dd9f954b097eebf1c1c0a0",
 ]
 
 [tool.uv.sources]
-robotsix-config = { git = "https://github.com/damien-robotsix/robotsix-config.git", rev = "8b9fa37f53b179986ca8b8f603d8786b9aa06018" }
-robotsix-http = { git = "https://github.com/damien-robotsix/robotsix-http.git", rev = "2fc08979da9a443bd28889aae14d55838b53d4ee" }
-robotsix-llmio = { git = "https://github.com/damien-robotsix/robotsix-llmio.git", rev = "d82bf43a4de36acf5b8ef3ce9442c5cf9a6621c9" }
-robotsix-modules = { git = "https://github.com/damien-robotsix/robotsix-modules.git", rev = "8fed749b0913c3dcb2200ada5cf6cf14f9f9f6ea" }
+robotsix-config = { git = "https://github.com/damien-robotsix/robotsix-config.git", rev = "82826f8f56f29629fa2c1dc691245349e8de1e54" }
+robotsix-http = { git = "https://github.com/damien-robotsix/robotsix-http.git", rev = "726254c4e24e56b409dd9f954b097eebf1c1c0a0" }
+robotsix-llmio = { git = "https://github.com/damien-robotsix/robotsix-llmio.git", rev = "c47468306f8d1a4cf3094f8fa6bd526c2a500eed" }
+robotsix-modules = { git = "https://github.com/damien-robotsix/robotsix-modules.git", rev = "1c7d01f4ed264524857838fad78b5a3d05d3d774" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/robotsix_memory"]
