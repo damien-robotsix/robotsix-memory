@@ -37,6 +37,17 @@ jobs:
       contents: read
       security-events: write # SARIF upload from the reusable workflow
 
+  # Pre-merge image gate: build the image (push: false) and fail on unfixed
+  # CRITICAL/HIGH Trivy findings before merge. docker-publish.yml only scans
+  # after the image is pushed. Pinned to the same SHA as docker-release.yml.
+  docker-pr-scan:
+    name: Docker PR scan
+    if: github.event_name == 'pull_request'
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/docker-pr-scan.yml@c4caf23ade98668434145f5b1abd3bc42cec63e7 # main
+    permissions:
+      contents: read
+      security-events: write # SARIF upload from the reusable workflow
+
   # Modules-drift gate: equivalent of the shared baseline-check.yml
   # `has-board: true` modules job (validate + check-registration +
   # validate-paths against docs/modules.yaml). Inlined rather than calling
