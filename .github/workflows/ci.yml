@@ -48,6 +48,18 @@ jobs:
       contents: read
       security-events: write # SARIF upload from the reusable workflow
 
+  # PR gate: fail on newly introduced dependencies with known vulnerabilities
+  # of moderate severity or above.
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/dependency-review.yml@47523e8aa2d34d41da060d29b57f75ab262cb840 # v1.4.0
+    with:
+      fail-on-severity: moderate
+    permissions:
+      contents: read
+      pull-requests: write # PR summary comment from dependency-review
+
   # Modules-drift gate: equivalent of the shared baseline-check.yml
   # `has-board: true` modules job (validate + check-registration +
   # validate-paths against docs/modules.yaml). Inlined rather than calling
