@@ -41,7 +41,7 @@ jobs:
   # its SARIF to code scanning.
   lint-dockerfile:
     name: Lint Dockerfile
-    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/lint-dockerfile.yml@47523e8aa2d34d41da060d29b57f75ab262cb840 # v1.4.0
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/lint-dockerfile.yml@3934fbd9ccb11981f81b9886569ebaed7fcdd5f7 # main
     with:
       dockerfiles: Dockerfile
       upload-sarif: true
