@@ -1,6 +1,10 @@
 FROM python:3.14-slim@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170 AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.12.5@sha256:db2d5999728c5837e1bf9ba278ee6b05cef1e95e82a20e27b0c915cb4478b9d7 /uv /usr/local/bin/uv
 # git is required for uv to resolve the robotsix-http git dependency.
+# DL3008: git is only used in the throwaway builder stage to fetch the git
+# dependency; it never reaches the runtime image, and pinning a Debian
+# revision would break the build whenever the archive rotates it.
+# hadolint ignore=DL3008
 RUN apt-get update \
   && apt-get install -y --no-install-recommends git \
   && rm -rf /var/lib/apt/lists/*
