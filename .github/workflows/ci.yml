@@ -57,7 +57,7 @@ jobs:
       contents: read
       # The reusable job declares pull-requests: write (comment-summary-in-pr);
       # a called job cannot exceed the caller's grant, so it must be passed on.
-      pull-requests: write
+      pull-requests: write # PR summary comment from dependency-review
 
   # Modules-drift gate: equivalent of the shared baseline-check.yml
   # `has-board: true` modules job (validate + check-registration +

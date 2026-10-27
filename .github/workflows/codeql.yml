@@ -24,4 +24,4 @@ jobs:
     permissions:
       security-events: write # CodeQL SARIF upload
       contents: read
-      actions: read
+      actions: read # CodeQL reads workflow run metadata
