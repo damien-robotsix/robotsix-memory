@@ -37,6 +37,18 @@ jobs:
       contents: read
       security-events: write # SARIF upload from the reusable workflow
 
+  # Dockerfile lint gate: run hadolint against the only Dockerfile and upload
+  # its SARIF to code scanning.
+  lint-dockerfile:
+    name: Lint Dockerfile
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/lint-dockerfile.yml@3934fbd9ccb11981f81b9886569ebaed7fcdd5f7 # main
+    with:
+      dockerfiles: Dockerfile
+      upload-sarif: true
+    permissions:
+      contents: read
+      security-events: write # SARIF upload from the reusable workflow
+
   # Pre-merge image gate: build the image (push: false) and fail on unfixed
   # CRITICAL/HIGH Trivy findings before merge. docker-publish.yml only scans
   # after the image is pushed. Pinned to the same SHA as docker-release.yml.
