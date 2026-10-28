@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.2](https://github.com/damien-robotsix/robotsix-memory/compare/v0.6.1...v0.6.2) (2026-10-27)
+
+
+### Documentation
+
+* AGENT.md: CI workflows — Before adding a `dependency-review` gate to a repository, confirm that Dependen… (20261027T125026Z-agent-md-ci-workflows-before-adding-a-de-82f9) ([#118](https://github.com/damien-robotsix/robotsix-memory/issues/118)) ([59382c2](https://github.com/damien-robotsix/robotsix-memory/commit/59382c2f3adfe70e929160252fe0b5f99f140626))
+
 ## [0.6.1](https://github.com/damien-robotsix/robotsix-memory/compare/v0.6.0...v0.6.1) (2026-10-23)
 
 
