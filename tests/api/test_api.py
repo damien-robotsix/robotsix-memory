@@ -52,6 +52,31 @@ def test_health_standard_shape() -> None:
     assert resp.json() == {"status": "ok"}
 
 
+def test_health_ready_ok(hindsight_mock: SimpleNamespace) -> None:
+    """Readiness from the shared router: 200 when the engine answers."""
+    resp = client.get("/health/ready")
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "ok"}
+    assert hindsight_mock.routes["ping"].called
+
+
+def test_health_ready_unready_when_hindsight_down(hindsight_mock: SimpleNamespace) -> None:
+    hindsight_mock.routes["ping"].mock(side_effect=httpx.ConnectError("refused"))
+    resp = client.get("/health/ready")
+    assert resp.status_code == 503
+    body = resp.json()
+    assert body["status"] == "unready"
+    assert body["failures"] == ["hindsight: hindsight unreachable"]
+
+
+def test_health_live_skips_dependency_checks(hindsight_mock: SimpleNamespace) -> None:
+    """Liveness never probes the engine, so a Hindsight outage cannot restart us."""
+    hindsight_mock.routes["ping"].mock(side_effect=httpx.ConnectError("refused"))
+    resp = client.get("/health/live")
+    assert resp.status_code == 200
+    assert not hindsight_mock.routes["ping"].called
+
+
 def test_health_reports_hindsight_down(hindsight_mock: SimpleNamespace) -> None:
     hindsight_mock.routes["ping"].mock(side_effect=httpx.ConnectError("refused"))
     resp = client.get("/health/hindsight")
@@ -309,13 +334,15 @@ def test_chat_skill_contract_syncs_with_app() -> None:
     descriptor rather than a machine-introspectable JSON dict, so the fleet
     standard enforces sync at the *route* level: every route registered on
     the app must be documented in the descriptor and vice versa
-    (``assert_chat_skill_route_parity``). ``/health/live`` and
-    ``/health/hindsight`` are container/engine infra, ignored here. On top of
+    (``assert_chat_skill_route_parity``). ``/health/live``, ``/health/ready``
+    and ``/health/hindsight`` are container/engine infra, ignored here. On top of
     parity we assert each request model's field names still appear verbatim in
     the descriptor, so a renamed/added ``RememberRequest``/``ReflectRequest``
     field fails CI until the descriptor is updated.
     """
-    assert_chat_skill_route_parity(app, chat_skill(), ignore={"/health/live", "/health/hindsight"})
+    assert_chat_skill_route_parity(
+        app, chat_skill(), ignore={"/health/live", "/health/ready", "/health/hindsight"}
+    )
 
     descriptor = chat_skill()
     for name in RememberRequest.model_fields:

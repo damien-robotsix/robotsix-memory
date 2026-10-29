@@ -120,10 +120,6 @@ register_exception_handlers(app)
 if _metrics_enabled():
     Instrumentator().instrument(app)
 
-# Fleet-standard GET /health -> {"status": "ok"}. The bespoke /health/live
-# (container liveness) and /health/hindsight (engine reachability) stay below.
-app.include_router(create_health_router())
-
 # Fleet-standard GET /chat-skill serving the markdown+frontmatter chat-access
 # descriptor as text/markdown. The descriptor's frontmatter is validated at
 # router-construction time and its `name` asserted against the component id.
@@ -142,6 +138,27 @@ replayer = RetainReplayer(
     client,
     interval=settings.retain_replay_interval,
     per_minute=settings.retain_replay_per_minute,
+)
+
+
+async def _hindsight_ready() -> None:
+    """Readiness check: raise unless the Hindsight engine answers."""
+    if not await client.ping():
+        raise RuntimeError("hindsight unreachable")
+
+
+# Fleet-standard health/probe routes from the shared factory:
+# GET /health -> {"status": "ok"}, GET /health/live (own-process liveness, used
+# by the container health check) and GET /health/ready (engine reachability,
+# each check bounded by ``check_timeout_s``; 503 ``unready`` on failure).
+# /health/hindsight below is a diagnostic endpoint, not a probe.
+app.include_router(
+    create_health_router(
+        live_path="/health/live",
+        ready_path="/health/ready",
+        checks={"hindsight": _hindsight_ready},
+        check_timeout_s=5.0,
+    )
 )
 
 
@@ -186,15 +203,13 @@ def _domain_error_for(exc: HindsightError) -> DomainError:
     return DomainError(str(exc), code="hindsight_error", status_code=status)
 
 
-@app.get("/health/live")
-async def health_live() -> dict[str, str]:
-    """Own-process liveness only — used by the container health check."""
-    return {"status": "ok"}
-
-
 @app.get("/health/hindsight")
 async def health_hindsight() -> dict[str, Any]:
-    """Full status: engine reachability plus the write (retain) path.
+    """Diagnostic status (not a probe): engine reachability plus the write path.
+
+    Operators and the upgrade runbook read its rich payload (per-bank retain
+    status, replay counters); orchestrator probes use ``/health/live`` and
+    ``/health/ready`` from the shared router instead.
 
     ``retain`` summarises every bank's newest retain operations (see
     :meth:`HindsightClient.retain_health`); ``status`` is ``degraded`` when
