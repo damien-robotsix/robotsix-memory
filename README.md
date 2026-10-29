@@ -30,7 +30,7 @@ container only — Docker restarts it while the wrapper keeps answering
 | `GET /recall` | Search an owner's memories (`query`, `owner_id`, `limit`, `tags`, optional `budget` = `low`/`mid`/`high`; default derived from `limit` — `low` for `limit <= 10` — because the engine's rerank cost scales with the candidate budget) |
 | `POST /reflect` | Reasoned answer grounded in the owner's memories |
 | `GET /chat-skill` | Markdown+frontmatter skill document for chat agents |
-| `GET /health` | Standard health check (`{"status": "ok"}`); `GET /health/live` liveness only; `GET /health/hindsight` adds engine reachability and the write-path (`retain`) status — `degraded` when recent retain operations keep failing; `retain.replay` reports the failed-retain replay counters (`queued`, `last_at`) |
+| `GET /health` | Standard health check (`{"status": "ok"}`); `GET /health/live` liveness only (container health check); `GET /health/ready` readiness — 503 `unready` when the Hindsight engine does not answer within 5 s; `GET /health/hindsight` (diagnostic, not a probe) adds engine reachability and the write-path (`retain`) status — `degraded` when recent retain operations keep failing; `retain.replay` reports the failed-retain replay counters (`queued`, `last_at`) |
 | `POST /admin/replay-failed-retains` | Queue retries of the failed retain backlog now (internal network only; the wrapper has no API key) — see [Failed-retain replay](#failed-retain-replay) |
 
 Memories are scoped per `owner_id` (one Hindsight bank per owner):
