@@ -204,6 +204,13 @@ class RememberRequest(BaseModel):
 
 
 class ReflectRequest(BaseModel):
+    """Request body for the reflect endpoint.
+
+    Attributes:
+        query: The question the memory bank reasons over.
+        owner_id: Memory scope whose bank is queried.
+    """
+
     query: str = Field(min_length=1)
     owner_id: str = Field(min_length=1)
 
