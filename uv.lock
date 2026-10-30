@@ -932,7 +932,7 @@ dependencies = [
 
 [[package]]
 name = "robotsix-memory"
-version = "0.6.2"
+version = "0.6.3"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
