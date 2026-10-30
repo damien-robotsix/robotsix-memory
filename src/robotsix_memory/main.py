@@ -163,6 +163,21 @@ app.include_router(
 
 
 class RememberRequest(BaseModel):
+    """Request body for the remember (retain) endpoint.
+
+    Attributes:
+        content: The fact or event to store.
+        owner_id: Memory scope the fact is written under.
+        tags: Optional labels attached to the stored item.
+        context: Optional free-text context for the item.
+        timestamp: Optional timestamp for when the event occurred.
+        document_id: Optional document key; combine with ``update_mode``.
+        background: If True, fact extraction runs asynchronously and the
+            call returns once the item is queued.
+        update_mode: With ``document_id``, ``replace`` supersedes prior
+            facts for that document and ``append`` adds to them.
+    """
+
     content: str = Field(min_length=1, description="The fact/event to remember")
     owner_id: str = Field(min_length=1, description="Memory scope, e.g. 'operator'")
     tags: list[str] | None = None
