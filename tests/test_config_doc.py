@@ -44,5 +44,6 @@ def test_config_doc_types_and_defaults_match() -> None:
 
 def test_config_doc_env_overrides() -> None:
     overrides = {row[0]: row[4] for row in _table_rows()}
-    assert overrides.pop("hindsight_url") == "MEMORY_HINDSIGHT_URL"
+    hindsight_override = overrides.pop("hindsight_url")
+    assert hindsight_override == "MEMORY_HINDSIGHT_URL"
     assert set(overrides.values()) == {"none"}
