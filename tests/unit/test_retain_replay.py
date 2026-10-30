@@ -7,11 +7,16 @@ The ``operations`` route mirrors the live Hindsight shape (``id``,
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Awaitable, Callable
 from types import SimpleNamespace
+from typing import Any, cast
 
 import httpx
+import pytest
+import structlog
 
-from robotsix_memory.hindsight_client import HindsightClient
+from robotsix_memory.hindsight_client import HindsightClient, HindsightError
 from robotsix_memory.retain_replay import RetainReplayer, select_replay_ops
 
 
@@ -123,3 +128,143 @@ async def test_send_rate_limits_and_survives_retry_errors(
     sent = await replayer.send([(hindsight_mock.bank, "op-1"), (hindsight_mock.bank, "op-2")])
     assert sent == 1
     assert sleeps == [2.0]
+
+
+class _FakeClient:
+    """Scripted stand-in for :class:`HindsightClient`.
+
+    ``health`` is consumed one entry per ``retain_health`` call (the last
+    entry repeats); an entry that is an exception is raised instead.
+    ``ops`` maps bank -> operations list, or an exception to raise.
+    """
+
+    def __init__(
+        self,
+        health: list[dict[str, Any] | Exception],
+        ops: dict[str, list[dict[str, Any]] | Exception],
+    ) -> None:
+        self._health = health
+        self.ops = ops
+        self.health_calls = 0
+        self.retried: list[tuple[str, str]] = []
+
+    async def retain_health(self) -> dict[str, Any]:
+        entry = self._health[min(self.health_calls, len(self._health) - 1)]
+        self.health_calls += 1
+        if isinstance(entry, Exception):
+            raise entry
+        return entry
+
+    async def list_operations(self, bank: str) -> list[dict[str, Any]]:
+        result = self.ops[bank]
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+    async def retry_operation(self, bank: str, op_id: str) -> dict[str, Any]:
+        self.retried.append((bank, op_id))
+        return {}
+
+
+def _health(**statuses: str) -> dict[str, Any]:
+    return {"banks": {name: {"status": status} for name, status in statuses.items()}}
+
+
+def _fake_replayer(
+    fake: _FakeClient, sleep: Callable[[float], Awaitable[None]] = _no_sleep
+) -> RetainReplayer:
+    return RetainReplayer(cast(HindsightClient, fake), interval=900.0, per_minute=30, sleep=sleep)
+
+
+async def test_new_failure_episode_allows_ops_to_be_retried_again() -> None:
+    fake = _FakeClient(
+        health=[
+            _health(bank="failing"),
+            _health(bank="failing"),
+            _health(bank="ok"),
+            _health(bank="failing"),
+        ],
+        ops={"bank": [RECOVERED, *FAILED_BACKLOG]},
+    )
+    replayer = _fake_replayer(fake)
+
+    # First outage: the backlog is replayed once.
+    assert await replayer.tick() == 2
+    # Still the same failure episode: queued ids are remembered, nothing re-sent.
+    assert await replayer.tick() == 0
+    # The bank recovers.
+    assert await replayer.tick() == 0
+    # A second outage starts a new episode: the same op ids are retried again.
+    assert await replayer.tick() == 2
+
+    assert sorted(fake.retried) == [
+        ("bank", "op-a2"),
+        ("bank", "op-a2"),
+        ("bank", "op-b1"),
+        ("bank", "op-b1"),
+    ]
+    assert replayer.state()["queued"] == 4
+
+
+async def test_list_operations_error_skips_bank_and_plans_others() -> None:
+    fake = _FakeClient(
+        health=[_health(broken="failing", good="failing")],
+        ops={
+            "broken": HindsightError("boom", status_code=500),
+            "good": [RECOVERED, *FAILED_BACKLOG],
+        },
+    )
+    replayer = _fake_replayer(fake)
+
+    with structlog.testing.capture_logs() as logs:
+        assert await replayer.tick() == 2
+
+    assert sorted(fake.retried) == [("good", "op-a2"), ("good", "op-b1")]
+    failures = [log for log in logs if log["event"] == "retain.replay.list_failed"]
+    assert len(failures) == 1
+    assert failures[0]["bank"] == "broken"
+    assert failures[0]["log_level"] == "warning"
+    # The skipped bank's backlog is still owed a replay.
+    assert replayer.state()["pending_banks"] == ["broken"]
+
+
+async def test_run_forever_survives_failing_ticks() -> None:
+    fake = _FakeClient(health=[RuntimeError("hindsight exploded")], ops={})
+    sleeps: list[float] = []
+
+    async def _sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+        if len(sleeps) > 3:
+            raise asyncio.CancelledError
+
+    replayer = _fake_replayer(fake, sleep=_sleep)
+
+    with structlog.testing.capture_logs() as logs, pytest.raises(asyncio.CancelledError):
+        await replayer.run_forever()
+
+    # Every failing tick was logged and the loop kept going until cancelled.
+    assert fake.health_calls == 3
+    assert [log["event"] for log in logs] == ["retain.replay.tick_failed"] * 3
+    assert sleeps == [900.0] * 4
+
+
+async def test_pending_banks_tracks_unreplayed_backlog() -> None:
+    fake = _FakeClient(
+        health=[_health(bank="failing"), _health(bank="ok"), _health(bank="ok")],
+        ops={"bank": FAILED_BACKLOG},
+    )
+    replayer = _fake_replayer(fake)
+    assert replayer.state()["pending_banks"] == []
+
+    # Failing, write path unproven: the bank becomes pending.
+    assert await replayer.tick() == 0
+    assert replayer.state()["pending_banks"] == ["bank"]
+
+    # The bank reports ok but no retain has completed yet: still pending.
+    assert await replayer.tick() == 0
+    assert replayer.state()["pending_banks"] == ["bank"]
+
+    # The newest retain completed: the backlog is planned and pending cleared.
+    fake.ops["bank"] = [RECOVERED, *FAILED_BACKLOG]
+    assert await replayer.tick() == 2
+    assert replayer.state()["pending_banks"] == []
