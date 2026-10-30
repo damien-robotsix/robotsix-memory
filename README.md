@@ -72,6 +72,11 @@ behaviour and are set per deployment (see `deploy/docker-compose.yml`):
 | `ROBOTSIX_CONFIG_FILE` | Path to the single JSON config file consumed by `robotsix_config.load_config`. | `config/config.json` |
 | `ENABLE_METRICS` | When truthy (`1`/`true`/`yes`/`on`), enables Prometheus instrumentation and serves the `/metrics` exposition endpoint on a separate port. | unset (metrics off) |
 
+Every file-backed setting (timeouts, `recall_limit`, `bank_prefix`,
+`log_level`, `metrics_port`, the retain-replay interval and rate) is
+documented with its type, default and meaning in
+[docs/configuration.md](docs/configuration.md).
+
 ## Metrics
 
 Prometheus metrics are **opt-in**. Set `ENABLE_METRICS=true` to turn on
