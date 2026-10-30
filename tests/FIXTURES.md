@@ -11,6 +11,7 @@ how to migrate older tests onto the shared layout.
 tests/
 ├── conftest.py                     # shared respx routes: hindsight_mock
 ├── test_config.py                  # settings / config-file tests
+├── test_config_doc.py              # docs/configuration.md ↔ Settings sync
 ├── test_config_schema.py
 ├── test_gen_schema.py
 ├── unit/                           # pure HindsightClient request/response shaping

@@ -63,7 +63,9 @@ modules:
       - src/robotsix_memory/gen_schema.py
       - config/config.json
       - config/config.schema.json
+      - docs/configuration.md
       - tests/test_config.py
+      - tests/test_config_doc.py
       - tests/test_config_schema.py
       - tests/test_gen_schema.py
 
