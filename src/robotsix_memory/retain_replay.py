@@ -132,21 +132,7 @@ class RetainReplayer:
         asserts the provider is back.
         """
         health = await self._client.retain_health()
-        banks: dict[str, Any] = health.get("banks", {})
-        candidates: set[str] = set()
-        for name, entry in banks.items():
-            if entry.get("status") == "failing":
-                if name not in self._failing:
-                    # A new failure episode (the bank was healthy when last
-                    # seen): its ops may be retried again in this recovery.
-                    self._queued.pop(name, None)
-                    self._failing.add(name)
-                self._pending.add(name)
-            elif entry.get("status") == "ok":
-                self._failing.discard(name)
-            if entry.get("failed"):
-                candidates.add(name)
-        candidates |= self._pending & set(banks)
+        candidates = self._absorb_health(health.get("banks", {}))
         if not candidates:
             return []
 
@@ -158,7 +144,40 @@ class RetainReplayer:
                 logger.warning("retain.replay.list_failed", bank=name, error=str(exc)[:300])
         if not force and not any(newest_retain_succeeded(ops) for ops in ops_by_bank.values()):
             return []
+        return self._record_planned(ops_by_bank)
 
+    def _absorb_health(self, banks: dict[str, Any]) -> set[str]:
+        """Fold a ``retain_health()["banks"]`` sweep into the state; return candidates.
+
+        A bank turning ``failing`` after being healthy starts a new failure
+        episode (its queued op ids are forgotten); an ``ok`` status clears the
+        failing mark. Banks with recent ``failed`` entries or a pending
+        backlog are replay candidates.
+        """
+        candidates: set[str] = set()
+        for name, entry in banks.items():
+            status = entry.get("status")
+            if status == "failing":
+                self._mark_failing(name)
+            elif status == "ok":
+                self._failing.discard(name)
+            if entry.get("failed"):
+                candidates.add(name)
+        return candidates | (self._pending & set(banks))
+
+    def _mark_failing(self, name: str) -> None:
+        """Record ``name`` as failing, opening a new episode if it was healthy."""
+        if name not in self._failing:
+            # A new failure episode (the bank was healthy when last
+            # seen): its ops may be retried again in this recovery.
+            self._queued.pop(name, None)
+            self._failing.add(name)
+        self._pending.add(name)
+
+    def _record_planned(
+        self, ops_by_bank: dict[str, list[dict[str, Any]]]
+    ) -> list[tuple[str, str]]:
+        """De-duplicate replay ops against this episode's queue and record them."""
         planned: list[tuple[str, str]] = []
         for name, ops in ops_by_bank.items():
             seen = self._queued.setdefault(name, set())
