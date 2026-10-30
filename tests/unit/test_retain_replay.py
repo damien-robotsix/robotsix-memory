@@ -268,3 +268,28 @@ async def test_pending_banks_tracks_unreplayed_backlog() -> None:
     fake.ops["bank"] = [RECOVERED, *FAILED_BACKLOG]
     assert await replayer.tick() == 2
     assert replayer.state()["pending_banks"] == []
+
+
+def test_absorb_health_tracks_episodes_and_candidates() -> None:
+    replayer = _fake_replayer(_FakeClient(health=[], ops={}))
+    replayer._failing = {"recovered"}
+    replayer._queued = {"fresh": {"op-old"}, "still": {"op-kept"}}
+    replayer._failing.add("still")
+
+    candidates = replayer._absorb_health(
+        {
+            "fresh": {"status": "failing"},
+            "still": {"status": "failing"},
+            "recovered": {"status": "ok"},
+            "flaky": {"status": "ok", "failed": 2},
+        }
+    )
+
+    # A new failure episode forgets the bank's queued ids; an ongoing one keeps them.
+    assert "fresh" not in replayer._queued
+    assert replayer._queued["still"] == {"op-kept"}
+    # An ``ok`` status clears the failing mark.
+    assert replayer._failing == {"fresh", "still"}
+    # Failing banks become pending; ``failed`` entries are candidates too.
+    assert replayer._pending == {"fresh", "still"}
+    assert candidates == {"fresh", "still", "flaky"}
