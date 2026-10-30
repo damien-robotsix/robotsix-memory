@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.6.3](https://github.com/damien-robotsix/robotsix-memory/compare/v0.6.2...v0.6.3) (2026-10-30)
+
+
+### Documentation
+
+* Add a consolidated configuration reference documenting every Settings field and default (20261030T150753Z-add-a-consolidated-configuration-referen-0207) ([#139](https://github.com/damien-robotsix/robotsix-memory/issues/139)) ([00260fc](https://github.com/damien-robotsix/robotsix-memory/commit/00260fc6fd0cac4a0dfe645298dab5ed51c67c15))
+* Add docstring to ReflectRequest request model in main.py (20261030T161303Z-add-docstring-to-reflectrequest-request-d93f) ([#140](https://github.com/damien-robotsix/robotsix-memory/issues/140)) ([4bc95b7](https://github.com/damien-robotsix/robotsix-memory/commit/4bc95b7828afe57e6369bc844cb86fdf9e4cb0ac))
+* docstring gap: add docstring to RememberRequest in src/robotsix_memory/main.py:165 (20261030T145946Z-docstring-gap-add-docstring-to-rememberr-2175) ([#135](https://github.com/damien-robotsix/robotsix-memory/issues/135)) ([843cbcb](https://github.com/damien-robotsix/robotsix-memory/commit/843cbcba3373dc1cd0440b69d124773c43a9338e))
+
 ## [0.6.2](https://github.com/damien-robotsix/robotsix-memory/compare/v0.6.1...v0.6.2) (2026-10-27)
 
 
