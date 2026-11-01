@@ -9,7 +9,7 @@ permissions: {} # no workflow-level default; the job grants its own
 
 jobs:
   docker-release:
-    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/docker-release.yml@c4caf23ade98668434145f5b1abd3bc42cec63e7
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/docker-release.yml@86a722f2938c1dda343bbf8d3c5989613cbf1794 # v1.5.0
     permissions:
       contents: read
       packages: write # push images to ghcr.io
