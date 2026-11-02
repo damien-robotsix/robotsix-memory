@@ -74,6 +74,23 @@ jobs:
       contents: read
       pull-requests: write # PR summary comment from dependency-review
 
+  # Secret scan: TruffleHog via the shared python-security workflow
+  # (robotsix-standards security-posture). On PRs only the diff is scanned.
+  # pip-audit is disabled because python-ci already runs `uv audit`.
+  secret-scan:
+    name: Secret scan
+    uses: damien-robotsix/robotsix-github-workflows/.github/workflows/python-security.yml@86a722f2938c1dda343bbf8d3c5989613cbf1794 # v1.5.0
+    with:
+      python-version: "3.14"
+      # Must match required-version in pyproject.toml ([tool.uv]).
+      uv-version: "0.12.5"
+      install-extras: ""
+      trufflehog-pr-diff: true
+      trufflehog-extra-args: "--results=verified,unknown"
+      run-pip-audit: false
+    permissions:
+      contents: read
+
   # Modules-drift gate: equivalent of the shared baseline-check.yml
   # `has-board: true` modules job (validate + check-registration +
   # validate-paths against docs/modules.yaml). Inlined rather than calling
