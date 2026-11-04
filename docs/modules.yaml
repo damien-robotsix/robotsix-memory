@@ -96,6 +96,7 @@ modules:
       - .gitignore
       - .release-please-manifest.json
       - .robotsix-mill/**
+      - .secrets-patterns-excluded
       - CHANGELOG.md
       - Dockerfile
       - LICENSE
