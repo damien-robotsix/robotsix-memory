@@ -1,4 +1,4 @@
-FROM python:3.14-slim@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170 AS builder
+FROM python:3.15-slim@sha256:8c13a3f37a6a5b71498228e902c4b9f51c1f7900d49fabf71f9a650c6120e0d0 AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.12.5@sha256:db2d5999728c5837e1bf9ba278ee6b05cef1e95e82a20e27b0c915cb4478b9d7 /uv /usr/local/bin/uv
 # git is required for uv to resolve the robotsix-http git dependency.
 # DL3008: git is only used in the throwaway builder stage to fetch the git
@@ -16,7 +16,7 @@ RUN uv sync --no-dev --frozen --no-install-project
 COPY src/ ./src/
 RUN uv sync --no-dev --frozen
 
-FROM python:3.14-slim@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170 AS runtime
+FROM python:3.15-slim@sha256:8c13a3f37a6a5b71498228e902c4b9f51c1f7900d49fabf71f9a650c6120e0d0 AS runtime
 RUN useradd --create-home --uid 1000 app
 
 # The base image still carries perl-base at the older trixie/main build
