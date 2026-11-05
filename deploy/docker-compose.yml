@@ -7,7 +7,7 @@
 # Empty-string env values are secrets supplied at onboarding.
 services:
   memory:
-    image: ghcr.io/damien-robotsix/robotsix-memory@sha256:4ef9e2b9e63e54132453eaea2b18de43fb53884234a99a203e5a7ad40fa44ca0
+    image: ghcr.io/damien-robotsix/robotsix-memory@sha256:a262547d346074b1f7af9b71c5ed99028fc8e9004461696fadecc1351aa867cc
     container_name: memory
     ports:
       - "8310:8080"
