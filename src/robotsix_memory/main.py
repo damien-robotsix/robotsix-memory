@@ -37,6 +37,7 @@ from robotsix_memory.hindsight_client import (
     RECALL_BUDGET_MID_MAX_LIMIT,
     HindsightClient,
     HindsightError,
+    RecallBudget,
     bank_id,
 )
 from robotsix_memory.logging_config import configure_logging, get_logger
@@ -312,7 +313,7 @@ async def recall(
     limit: Annotated[int | None, Query(ge=1, le=100)] = None,
     tags: Annotated[list[str] | None, Query()] = None,
     budget: Annotated[
-        Literal["low", "mid", "high"] | None,
+        RecallBudget | None,
         Query(
             description=(
                 "Engine candidate budget. Default is derived from limit "
