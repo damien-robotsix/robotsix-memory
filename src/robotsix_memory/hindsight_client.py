@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 import time
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import quote
 
 import httpx
@@ -49,7 +49,12 @@ def bank_id(prefix: str, owner_id: str) -> str:
 # ~15 s per recall on 2026-09-07 (mean 16.2 s, p90 30.4 s over 83 recalls)
 # while chat sliced the answer to 8 results and timed out at 20 s. Size the
 # engine's work to what the caller will actually keep.
+RecallBudget = Literal["low", "mid", "high"]
 RECALL_BUDGET_LOW_MAX_LIMIT = 10  # chat's per-turn recall asks for <= 8
+RECALL_BUDGET_MID_MAX_LIMIT = 50
+RECALL_TOKENS_PER_RESULT = 160  # one rendered memory ~ 160 tokens (observed)
+RECALL_MIN_MAX_TOKENS = 512
+RECALL_ENGINE_MAX_TOKENS = 4096  # Hindsight's own default ceiling
 
 # Hindsight rejects recall queries above a token ceiling with
 # ``400 {"detail": "Query too long: N tokens exceeds maximum of M …"}``.
@@ -60,13 +65,9 @@ RECALL_BUDGET_LOW_MAX_LIMIT = 10  # chat's per-turn recall asks for <= 8
 RECALL_QUERY_TOO_LONG_MARKER = "Query too long"
 RECALL_QUERY_SHRINK_ATTEMPTS = 4
 _TOO_LONG_RE = re.compile(r"(\d+) tokens exceeds maximum of (\d+)")
-RECALL_BUDGET_MID_MAX_LIMIT = 50
-RECALL_TOKENS_PER_RESULT = 160  # one rendered memory ~ 160 tokens (observed)
-RECALL_MIN_MAX_TOKENS = 512
-RECALL_ENGINE_MAX_TOKENS = 4096  # Hindsight's own default ceiling
 
 
-def recall_budget_for(limit: int) -> str:
+def recall_budget_for(limit: int) -> RecallBudget:
     """Pick the engine candidate budget matching how many results are kept."""
     if limit <= RECALL_BUDGET_LOW_MAX_LIMIT:
         return "low"
@@ -335,7 +336,7 @@ class HindsightClient:
         *,
         limit: int,
         tags: list[str] | None = None,
-        budget: str | None = None,
+        budget: RecallBudget | None = None,
     ) -> Any:
         """Search an owner's memories via natural-language query.
 
