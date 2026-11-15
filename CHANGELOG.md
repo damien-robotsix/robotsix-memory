@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.4](https://github.com/damien-robotsix/robotsix-memory/compare/v0.6.3...v0.6.4) (2026-11-15)
+
+
+### Bug Fixes
+
+* ci_fix: out-of-scope CI failure — Python CI / Dependency audit (SARIF), Python CI / Tests (20261115T124415Z-ci-fix-out-of-scope-ci-failure-python-ci-0d69) ([#176](https://github.com/damien-robotsix/robotsix-memory/issues/176)) ([79e5d8a](https://github.com/damien-robotsix/robotsix-memory/commit/79e5d8a4b8d7be0ffeb0334ce2d401e909b931c6))
+
 ## [0.6.3](https://github.com/damien-robotsix/robotsix-memory/compare/v0.6.2...v0.6.3) (2026-11-01)
 
 
