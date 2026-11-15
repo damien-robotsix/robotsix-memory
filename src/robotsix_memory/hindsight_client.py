@@ -349,7 +349,7 @@ class HindsightClient:
         Args:
             bank: Target bank ID.
             query: Natural-language search query.
-            limit: Maximum number of results to return (1–100).
+            limit: Maximum number of results to return (1-100).
             tags: Optional topical filters; results must match one or more
                 tags if provided.
             budget: Engine candidate-pool budget (``'low'``, ``'mid'``,
