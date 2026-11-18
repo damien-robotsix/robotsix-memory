@@ -93,6 +93,7 @@ modules:
       single code module.
     paths:
       - .dockerignore
+      - .github/**
       - .gitignore
       - .release-please-manifest.json
       - .robotsix-mill/**
