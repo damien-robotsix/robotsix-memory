@@ -95,6 +95,7 @@ modules:
       - .dockerignore
       - .github/**
       - .gitignore
+      - .pre-commit-config.yaml
       - .release-please-manifest.json
       - .robotsix-mill/**
       - .secrets-patterns-excluded
