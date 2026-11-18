@@ -97,6 +97,7 @@ modules:
       - .release-please-manifest.json
       - .robotsix-mill/**
       - .secrets-patterns-excluded
+      - AGENT.md
       - CHANGELOG.md
       - Dockerfile
       - LICENSE
