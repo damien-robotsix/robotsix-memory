@@ -35,6 +35,8 @@ jobs:
     with:
       run-actionlint: true
       run-zizmor: true
+      # digest-pin gate: fail on any external FROM lacking @sha256.
+      dockerfiles: Dockerfile
     permissions:
       contents: read
       security-events: write # SARIF upload from the reusable workflow
