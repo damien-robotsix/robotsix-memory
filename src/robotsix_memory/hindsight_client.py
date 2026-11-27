@@ -132,6 +132,15 @@ class HindsightClient:
         self._base_url = base_url.rstrip("/")
         self._timeout = timeout
         self._retain_timeout = retain_timeout
+        # One pooled httpx.AsyncClient for the instance's whole lifetime,
+        # wrapped once in RetryClient. Reusing a single client keeps TCP
+        # connections (and their TLS session and DNS cache) alive across
+        # /remember and /recall requests instead of forcing a fresh
+        # handshake per round-trip. Per-request timeouts override the
+        # default below and are safe on a shared client for concurrent
+        # coroutines.
+        self._http_client = httpx.AsyncClient(timeout=timeout)
+        self._client = RetryClient(self._http_client)
 
     async def _request(
         self,
@@ -150,9 +159,13 @@ class HindsightClient:
             return round((time.monotonic() - start) * 1000, 2)
 
         try:
-            async with httpx.AsyncClient(timeout=timeout or self._timeout) as http_client:
-                client = RetryClient(http_client)
-                resp = await client.request(method, url, json=json_body, params=params)
+            resp = await self._client.request(
+                method,
+                url,
+                json=json_body,
+                params=params,
+                timeout=timeout or self._timeout,
+            )
         except ExternalHTTPError as exc:
             # RetryClient mapped a 401/403/429/5xx after exhausting retries.
             log.warning(
@@ -258,9 +271,7 @@ class HindsightClient:
     async def ping(self) -> bool:
         """True when the Hindsight API answers at all."""
         try:
-            async with httpx.AsyncClient(timeout=5.0) as http_client:
-                client = RetryClient(http_client)
-                resp = await client.get(f"{self._base_url}/")
+            resp = await self._client.get(f"{self._base_url}/", timeout=self._timeout)
         except ExternalHTTPError as exc:
             # The engine answered with an auth/rate-limit/other client error;
             # a status < 500 still means the API is reachable.
@@ -420,3 +431,7 @@ class HindsightClient:
             json_body={"query": query},
             timeout=self._retain_timeout,
         )
+
+    async def aclose(self) -> None:
+        """Close the pooled HTTP client (called from the app's lifespan shutdown)."""
+        await self._http_client.aclose()

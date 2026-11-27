@@ -59,7 +59,10 @@ recall = `POST …/memories/recall`).
 ### `hs_client` (`tests/unit/conftest.py`)
 
 A bare `HindsightClient` bound to the same base URL the shared respx
-routes mock. Available only to the unit tier.
+routes mock. Available only to the unit tier. The instance owns one
+pooled `httpx.AsyncClient` (created at construction, closed when the
+fixture tears down), so the unit tier exercises the same pooled-client
+path the app uses.
 
 ## Using the shared fixtures
 
@@ -113,7 +116,7 @@ hindsight_mock.routes["recall"].mock(
 - **A tier-specific helper** → put it in that tier's `conftest.py`
   (`tests/unit/conftest.py`), not the top-level one, so it does not leak
   into unrelated tiers. Follow the `hs_client` shape.
-- Type fixtures with their return/yield type (`-> HindsightClient`,
+- Type fixtures with their return/yield type (`-> AsyncIterator[HindsightClient]`,
   `-> Iterator[SimpleNamespace]`) and give them a one-line docstring
   describing what a consumer gets.
 - Prefer extending `hindsight_mock` over standing up a fresh

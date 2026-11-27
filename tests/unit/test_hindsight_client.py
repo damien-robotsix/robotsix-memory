@@ -200,6 +200,25 @@ async def test_request_logs_error_status(
     assert errors[0]["status_code"] == 503
 
 
+async def test_client_reuses_pooled_httpx_client(
+    hs_client: HindsightClient, hindsight_mock: SimpleNamespace
+) -> None:
+    """One pooled ``httpx.AsyncClient`` serves every request (connection reuse)."""
+    http_client = hs_client._http_client
+    assert isinstance(http_client, httpx.AsyncClient)
+    assert not http_client.is_closed
+    assert await hs_client.ping() is True
+    await hs_client.recall(hindsight_mock.bank, "warm", limit=1)
+    assert hs_client._http_client is http_client
+    assert not http_client.is_closed
+
+
+async def test_acclose_closes_pooled_client(hs_client: HindsightClient) -> None:
+    """``aclose`` releases the pooled client's connections."""
+    await hs_client.aclose()
+    assert hs_client._http_client.is_closed
+
+
 _TOO_LONG_DETAIL = {
     "detail": "Query too long: 751 tokens exceeds maximum of 500. Please shorten your query."
 }
