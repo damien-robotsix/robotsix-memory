@@ -89,6 +89,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         replay_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await replay_task
+    await client.aclose()
     logger.info("shutdown")
 
 
