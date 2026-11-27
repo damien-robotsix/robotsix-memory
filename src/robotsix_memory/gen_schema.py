@@ -14,6 +14,7 @@ from robotsix_memory.config import Settings
 
 
 def main() -> None:
+    """Regenerate ``config/config.schema.json`` from the Settings model."""
     schema = Settings.model_json_schema()
     schema["description"] = "Every setting robotsix-memory reads at runtime."
     out = Path("config/config.schema.json")
